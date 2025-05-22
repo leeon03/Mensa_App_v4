@@ -46,7 +46,7 @@ export default function HomeScreen() {
 
       const seen = await AsyncStorage.getItem('onboardingSeen');
       if (!seen) {
-        router.replace('./OnboardingScreen');
+        router.replace('/onboardingscreen');
       }
     };
 
