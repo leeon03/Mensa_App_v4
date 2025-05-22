@@ -14,9 +14,7 @@ import { useColorScheme } from 'react-native';
 import { Colors } from '../constants/Colors';
 import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
-
-// ✅ Supabase importieren
-import { supabase } from '../constants/supabase'; // Pfad ggf. anpassen
+import { supabase } from '../constants/supabase';
 
 export default function UserLoginScreen() {
   const theme = useColorScheme() || 'light';
@@ -45,7 +43,6 @@ export default function UserLoginScreen() {
       return;
     }
 
-    // ✅ Eingeloggt – weiterleiten
     router.replace('/startseite');
   };
 
@@ -63,14 +60,11 @@ export default function UserLoginScreen() {
         </Text>
 
         <TextInput
-          style={[
-            styles.input,
-            {
-              backgroundColor: Colors[theme].surface,
-              color: Colors[theme].text,
-              borderColor: emailFocused ? '#63a53d' : Colors[theme].icon,
-            },
-          ]}
+          style={[styles.input, {
+            backgroundColor: Colors[theme].surface,
+            color: Colors[theme].text,
+            borderColor: emailFocused ? '#63a53d' : Colors[theme].icon,
+          }]}
           placeholder="E-Mail"
           placeholderTextColor={Colors[theme].icon}
           keyboardType="email-address"
@@ -82,14 +76,11 @@ export default function UserLoginScreen() {
         />
 
         <TextInput
-          style={[
-            styles.input,
-            {
-              backgroundColor: Colors[theme].surface,
-              color: Colors[theme].text,
-              borderColor: passwordFocused ? '#63a53d' : Colors[theme].icon,
-            },
-          ]}
+          style={[styles.input, {
+            backgroundColor: Colors[theme].surface,
+            color: Colors[theme].text,
+            borderColor: passwordFocused ? '#63a53d' : Colors[theme].icon,
+          }]}
           placeholder="Passwort"
           placeholderTextColor={Colors[theme].icon}
           secureTextEntry

@@ -16,6 +16,8 @@ import { useColorScheme } from 'react-native';
 import { Colors } from '../constants/Colors';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useRouter } from 'expo-router';
+import { supabase } from '../constants/supabase'; // ✅ Supabase importiert
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -23,15 +25,14 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 
 export default function ProfileScreen() {
   const theme = useColorScheme() || 'light';
+  const router = useRouter();
 
   const [editOpen, setEditOpen] = useState(false);
   const [notifyOpen, setNotifyOpen] = useState(false);
-
   const [name, setName] = useState('Max Mustermann');
   const [email, setEmail] = useState('max@beispiel.de');
   const [notifyFavs, setNotifyFavs] = useState(true);
   const [notifyNews, setNotifyNews] = useState(false);
-
   const [oldPassword, setOldPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [repeatPassword, setRepeatPassword] = useState('');
@@ -74,6 +75,11 @@ export default function ProfileScreen() {
     setOldPassword('');
     setNewPassword('');
     setRepeatPassword('');
+  };
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    router.replace('/');
   };
 
   return (
@@ -163,6 +169,14 @@ export default function ProfileScreen() {
       <TouchableOpacity onPress={clearStorage} style={styles.resetButton}>
         <Text style={styles.resetButtonText}>🗑️ AsyncStorage zurücksetzen</Text>
       </TouchableOpacity>
+
+      {/* ✅ MODERNER LOGOUT-BUTTON */}
+      <TouchableOpacity
+        onPress={handleLogout}
+        style={[styles.logoutButton, { backgroundColor: Colors[theme].primary }]}
+      >
+        <Text style={styles.logoutButtonText}>🚪 Abmelden</Text>
+      </TouchableOpacity>
     </ScrollView>
   );
 }
@@ -243,6 +257,24 @@ const styles = StyleSheet.create({
   resetButtonText: {
     color: '#000',
     fontWeight: 'bold',
+  },
+  logoutButton: {
+    marginTop: 24,
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    borderRadius: 14,
+    alignItems: 'center',
+    width: '100%',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOpacity: 0.15,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 4,
+  },
+  logoutButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 16,
   },
   panelModern: {
     width: '100%',

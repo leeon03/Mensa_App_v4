@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
 import { useRouter } from 'expo-router';
 import { Colors } from '../constants/Colors';
 import * as Haptics from 'expo-haptics';
+import { supabase } from '../constants/supabase';
 
 type ScreenRoute = 'userLogin' | 'register' | 'adminLogin';
 
@@ -17,9 +18,20 @@ export default function LoginScreen() {
   const theme = useColorScheme() || 'light';
   const router = useRouter();
 
+  // ✅ Session automatisch prüfen
+  useEffect(() => {
+    const checkSession = async () => {
+      const { data } = await supabase.auth.getSession();
+      if (data.session) {
+        router.replace('/startseite');
+      }
+    };
+    checkSession();
+  }, []);
+
   const handleOption = (screen: ScreenRoute) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-   router.push(`/${screen}`);
+    router.push(`/${screen}`);
   };
 
   const logoSource =
