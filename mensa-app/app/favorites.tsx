@@ -11,7 +11,7 @@ import {
   Alert,
 } from 'react-native';
 import { useColorScheme } from 'react-native';
-import { Colors } from '@constants/Colors';
+import { Colors } from '../constants/Colors';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Animatable from 'react-native-animatable';
