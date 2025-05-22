@@ -11,12 +11,12 @@ import {
   ScrollView,
 } from 'react-native';
 import { useColorScheme } from 'react-native';
-import { Colors } from '../../constants/Colors';
+import { Colors } from '../constants/Colors';
 import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
 
 // ✅ Supabase importieren
-import { supabase } from '../../constants/supabase'; // Pfad ggf. anpassen
+import { supabase } from '../constants/supabase'; // Pfad ggf. anpassen
 
 export default function UserLoginScreen() {
   const theme = useColorScheme() || 'light';
@@ -46,7 +46,7 @@ export default function UserLoginScreen() {
     }
 
     // ✅ Eingeloggt – weiterleiten
-    router.replace('/(tabs)/startseite');
+    router.replace('/startseite');
   };
 
   return (

@@ -13,11 +13,11 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useColorScheme } from 'react-native';
-import { Colors } from '../../constants/Colors';
+import { Colors } from '../constants/Colors';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { supabase } from '../../constants/supabase'; // ✅ Supabase import
+import { supabase } from '../constants/supabase'; // ✅ Supabase import
 
 export default function HomeScreen() {
   const theme = useColorScheme() || 'light';
@@ -26,8 +26,8 @@ export default function HomeScreen() {
 
   const logoSource =
     theme === 'dark'
-      ? require('../../assets/AppLogoDarkmode.png')
-      : require('../../assets/AppLogo.png');
+      ? require('../assets/AppLogoDarkmode.png')
+      : require('../assets/AppLogo.png');
 
   const iconColor = Colors[theme].text;
 

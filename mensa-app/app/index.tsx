@@ -8,7 +8,7 @@ import {
   Image,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Colors } from '../../constants/Colors';
+import { Colors } from '../constants/Colors';
 import * as Haptics from 'expo-haptics';
 
 type ScreenRoute = 'userLogin' | 'register' | 'adminLogin';
@@ -24,8 +24,8 @@ export default function LoginScreen() {
 
   const logoSource =
     theme === 'dark'
-      ? require('../../assets/AppLogoDarkmode.png')
-      : require('../../assets/AppLogo.png');
+      ? require('../assets/AppLogoDarkmode.png')
+      : require('../assets/AppLogo.png');
 
   return (
     <View style={[styles.container, { backgroundColor: Colors[theme].background }]}>

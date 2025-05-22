@@ -11,10 +11,10 @@ import {
   ScrollView,
 } from 'react-native';
 import { useColorScheme } from 'react-native';
-import { Colors } from '../../constants/Colors';
+import { Colors } from '../constants/Colors';
 import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router'; // ✅ router für Navigation
-import { supabase } from '../../constants/supabase'; // ✅ Supabase importieren
+import { supabase } from '../constants/supabase'; // ✅ Supabase importieren
 
 export default function RegisterScreen() {
   const theme = useColorScheme() || 'light';
