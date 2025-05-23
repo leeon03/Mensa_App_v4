@@ -17,13 +17,24 @@ import { Colors } from '../constants/Colors';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
-import { supabase } from '../constants/supabase'; // ✅ Supabase importiert
+import { supabase } from '../constants/supabase';
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
 export default function ProfileScreen() {
+  return (
+    <SafeAreaProvider>
+      <SafeAreaView style={{ flex: 1 }}>
+        <ProfileContent />
+      </SafeAreaView>
+    </SafeAreaProvider>
+  );
+}
+
+function ProfileContent() {
   const theme = useColorScheme() || 'light';
   const router = useRouter();
 
@@ -170,7 +181,6 @@ export default function ProfileScreen() {
         <Text style={styles.resetButtonText}>🗑️ AsyncStorage zurücksetzen</Text>
       </TouchableOpacity>
 
-      {/* ✅ MODERNER LOGOUT-BUTTON */}
       <TouchableOpacity
         onPress={handleLogout}
         style={[styles.logoutButton, { backgroundColor: Colors[theme].primary }]}

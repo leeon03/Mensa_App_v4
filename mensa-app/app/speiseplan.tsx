@@ -1,56 +1,37 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  Dimensions,
-  TouchableOpacity,
-  Platform,
-  Modal,
-  LayoutAnimation,
-  UIManager,
+  View, Text, StyleSheet, Dimensions, TouchableOpacity,
+  Platform, Modal, LayoutAnimation, UIManager, ActivityIndicator,
 } from 'react-native';
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Colors } from '../constants/Colors';
 import { useColorScheme } from 'react-native';
 import RatingStars from '../components/RatingStars';
 import { Ionicons } from '@expo/vector-icons';
-import {
-  addDays,
-  startOfWeek,
-  format,
-  isSameDay,
-} from 'date-fns';
+import { addDays, startOfWeek, format, isSameDay } from 'date-fns';
+import { supabase } from '../constants/supabase';
+import { importMealsFromOpenMensa } from '../api/importMeals';
 
 const screenWidth = Dimensions.get('window').width;
 
-// Für Android Layout-Animation aktivieren
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
-const speiseplan: Record<string, any[]> = {
-  '2025-05-15': [
-    {
-      id: 1,
-      name: 'Käsespätzle',
-      beschreibung: 'Mit Röstzwiebeln und Salat',
-      bewertung: 4,
-      tags: ['vegetarisch', 'beliebt'],
-    },
-    {
-      id: 2,
-      name: 'Chili sin Carne',
-      beschreibung: 'Vegan, mit Brot',
-      bewertung: 5,
-      tags: ['vegan', 'scharf'],
-    },
-  ],
-};
-
 export default function SpeiseplanScreen() {
+  return (
+    <SafeAreaProvider>
+      <InnerSpeiseplanScreen />
+    </SafeAreaProvider>
+  );
+}
+
+function InnerSpeiseplanScreen() {
   const theme = useColorScheme() || 'light';
   const [selectedDate, setSelectedDate] = useState(new Date());
+  const [gerichte, setGerichte] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [favorites, setFavorites] = useState<Record<number, boolean>>({});
   const [alerts, setAlerts] = useState<Record<number, boolean>>({});
@@ -59,8 +40,37 @@ export default function SpeiseplanScreen() {
   const startOfCurrentWeek = startOfWeek(selectedDate, { weekStartsOn: 1 });
   const daysOfWeek = Array.from({ length: 5 }, (_, i) => addDays(startOfCurrentWeek, i));
   const weekLabel = `${format(daysOfWeek[0], 'dd.MM.yyyy')} - ${format(daysOfWeek[4], 'dd.MM.yyyy')}`;
-  const speiseplanKey = selectedDate.toISOString().split('T')[0];
-  const gerichte = speiseplan[speiseplanKey] || [];
+
+  const fetchGerichte = async (date: Date) => {
+    setLoading(true);
+    const isoDate = date.toISOString().split('T')[0];
+    const { data, error } = await supabase
+      .from('gerichte')
+      .select('*')
+      .eq('datum', isoDate)
+      .order('name', { ascending: true });
+
+    if (error) {
+      console.error('Fehler beim Laden der Gerichte:', error.message);
+      setGerichte([]);
+    } else {
+      setGerichte(data || []);
+    }
+
+    setLoading(false);
+  };
+
+  useEffect(() => {
+  const loadAndImport = async () => {
+    const isoDate = selectedDate.toISOString().split('T')[0];
+
+    await importMealsFromOpenMensa(isoDate); // Jetzt ohne ID
+    await fetchGerichte(selectedDate);
+  };
+
+  loadAndImport();
+}, [selectedDate]);
+    
 
   const handleDateChange = (event: any, date?: Date) => {
     if (event?.type === 'dismissed') {
@@ -71,32 +81,21 @@ export default function SpeiseplanScreen() {
     setShowDatePicker(false);
   };
 
-  const openDatePicker = () => {
-    setShowDatePicker(true);
-  };
-
+  const openDatePicker = () => setShowDatePicker(true);
   const changeWeek = (direction: 'prev' | 'next') => {
-    const change = direction === 'next' ? 7 : -7;
-    setSelectedDate(addDays(selectedDate, change));
+    const newDate = addDays(selectedDate, direction === 'next' ? 7 : -7);
+    setSelectedDate(newDate);
   };
-
-  const toggleFavorite = (id: number) => {
-    setFavorites((prev) => ({ ...prev, [id]: !prev[id] }));
-  };
-
-  const toggleAlert = (id: number) => {
-    setAlerts((prev) => ({ ...prev, [id]: !prev[id] }));
-  };
-
+  const toggleFavorite = (id: number) => setFavorites((prev) => ({ ...prev, [id]: !prev[id] }));
+  const toggleAlert = (id: number) => setAlerts((prev) => ({ ...prev, [id]: !prev[id] }));
   const getWeekdayShort = (date: Date) => format(date, 'EE');
-
   const toggleLegend = () => {
     LayoutAnimation.easeInEaseOut();
     setShowLegend(!showLegend);
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: Colors[theme].background }]}>
+    <SafeAreaView style={[styles.container, { backgroundColor: Colors[theme].background }]}>
       <Text style={[styles.title, { color: Colors[theme].accent1 }]}>Speiseplan</Text>
 
       <View style={styles.weekHeader}>
@@ -125,20 +124,10 @@ export default function SpeiseplanScreen() {
               },
             ]}
           >
-            <Text
-              style={{
-                color: isSameDay(day, selectedDate) ? '#fff' : Colors[theme].text,
-                fontWeight: '600',
-              }}
-            >
+            <Text style={{ color: isSameDay(day, selectedDate) ? '#fff' : Colors[theme].text, fontWeight: '600' }}>
               {getWeekdayShort(day)}
             </Text>
-            <Text
-              style={{
-                color: isSameDay(day, selectedDate) ? '#fff' : Colors[theme].text,
-                fontSize: 12,
-              }}
-            >
+            <Text style={{ color: isSameDay(day, selectedDate) ? '#fff' : Colors[theme].text, fontSize: 12 }}>
               {format(day, 'dd.MM')}
             </Text>
           </TouchableOpacity>
@@ -157,12 +146,7 @@ export default function SpeiseplanScreen() {
         <Modal transparent animationType="slide" visible={showDatePicker}>
           <View style={styles.modalOverlay}>
             <View style={[styles.modalContent, { backgroundColor: Colors[theme].background }]}>
-              <DateTimePicker
-                value={selectedDate}
-                mode="date"
-                display="spinner"
-                onChange={handleDateChange}
-              />
+              <DateTimePicker value={selectedDate} mode="date" display="spinner" onChange={handleDateChange} />
               <TouchableOpacity onPress={() => setShowDatePicker(false)} style={styles.doneButton}>
                 <Text style={[styles.doneText, { color: Colors[theme].accent1 }]}>Fertig</Text>
               </TouchableOpacity>
@@ -171,11 +155,8 @@ export default function SpeiseplanScreen() {
         </Modal>
       )}
 
-      {/* Aufklappbare Legende */}
       <TouchableOpacity onPress={toggleLegend} style={styles.legendToggle}>
-        <Text style={[styles.legendeTitle, { color: Colors[theme].text }]}>
-          Legende {showLegend ? '▲' : '▼'}
-        </Text>
+        <Text style={[styles.legendeTitle, { color: Colors[theme].text }]}>Legende {showLegend ? '▲' : '▼'}</Text>
       </TouchableOpacity>
 
       {showLegend && (
@@ -195,10 +176,10 @@ export default function SpeiseplanScreen() {
         </View>
       )}
 
-      {gerichte.length === 0 ? (
-        <Text style={[styles.emptyText, { color: Colors[theme].text }]}>
-          Kein Essen eingetragen
-        </Text>
+      {loading ? (
+        <ActivityIndicator size="large" />
+      ) : gerichte.length === 0 ? (
+        <Text style={[styles.emptyText, { color: Colors[theme].text }]}>Kein Essen eingetragen</Text>
       ) : (
         gerichte.map((gericht) => (
           <GerichtCard
@@ -211,7 +192,7 @@ export default function SpeiseplanScreen() {
           />
         ))
       )}
-    </View>
+    </SafeAreaView>
   );
 }
 

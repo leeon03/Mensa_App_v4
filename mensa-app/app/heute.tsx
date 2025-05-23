@@ -1,57 +1,141 @@
 import React, { useState } from 'react';
-import { View, Text, ScrollView, StyleSheet } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
 import { Colors } from '../constants/Colors';
 import { useColorScheme } from 'react-native';
 import RatingStars from '../components/RatingStars';
 import KommentarBox from '../components/KommentarBox';
 import ChatBubble from '../components/ChatBubble';
-import * as Animatable from 'react-native-animatable'; // ✅ NEU: Animationsimport
+import * as Animatable from 'react-native-animatable';
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
+
+type Kommentar = {
+  id: number;
+  user: string;
+  text: string;
+  stars: number;
+  own?: boolean;
+};
+
+type Gericht = {
+  id: number;
+  name: string;
+  beschreibung: string;
+  bewertung: number;
+  kommentare: Kommentar[];
+};
 
 export default function HeuteScreen() {
+  return (
+    <SafeAreaProvider>
+      <SafeAreaView style={{ flex: 1 }}>
+        <HeuteContent />
+      </SafeAreaView>
+    </SafeAreaProvider>
+  );
+}
+
+function HeuteContent() {
   const theme = useColorScheme() || 'light';
 
-  const gericht = {
-    name: 'Vegetarisches Curry',
-    beschreibung: 'Mit Reis, Gemüse & Kokossoße',
-    bewertung: 4,
-    kommentare: [
-      { id: 1, user: 'Anna', text: 'Sehr lecker heute!', stars: 5 },
-      { id: 2, user: 'Tom', text: 'War etwas zu scharf.', stars: 2 },
-    ],
+  const [gerichte, setGerichte] = useState<Gericht[]>([
+    {
+      id: 1,
+      name: 'Vegetarisches Curry',
+      beschreibung: 'Mit Reis, Gemüse & Kokossoße',
+      bewertung: 4,
+      kommentare: [],
+    },
+    {
+      id: 2,
+      name: 'Spaghetti Bolognese',
+      beschreibung: 'Mit Rindfleischsoße und Parmesan',
+      bewertung: 3,
+      kommentare: [],
+    },
+    {
+      id: 3,
+      name: 'Vegane Bowl',
+      beschreibung: 'Mit Quinoa, Tofu und Edamame',
+      bewertung: 5,
+      kommentare: [],
+    },
+  ]);
+
+  const [ausgewählt, setAusgewählt] = useState<number | null>(null);
+
+  const handleKommentarSubmit = (gerichtId: number, data: { text: string; stars: number }) => {
+    const neuerKommentar: Kommentar = {
+      id: Date.now(),
+      user: 'Du',
+      text: data.text,
+      stars: data.stars,
+      own: true,
+    };
+
+    setGerichte((prev) =>
+      prev.map((gericht) =>
+        gericht.id === gerichtId
+          ? { ...gericht, kommentare: [neuerKommentar, ...gericht.kommentare] }
+          : gericht
+      )
+    );
   };
 
+  const themeColor = Colors[theme];
+
   return (
-    <ScrollView style={[styles.container, { backgroundColor: Colors[theme].background }]}>
-      <Text style={[styles.title, { color: Colors[theme].accent2 }]}>Heute in der Mensa</Text>
+    <ScrollView style={[styles.container, { backgroundColor: themeColor.background }]}>
+      <Text style={[styles.title, { color: themeColor.accent2 }]}>Heute in der Mensa</Text>
 
-      <View style={[styles.gerichtBox, { backgroundColor: Colors[theme].surface }]}>
-        <Text style={[styles.gerichtName, { color: Colors[theme].text }]}>{gericht.name}</Text>
-        <Text style={[styles.gerichtBeschreibung, { color: Colors[theme].text }]}>{gericht.beschreibung}</Text>
-        <RatingStars value={gericht.bewertung} />
-      </View>
+      {gerichte.map((gericht) => {
+        const isActive = ausgewählt === gericht.id;
+        return (
+          <View key={gericht.id} style={[styles.gerichtWrapper, isActive && styles.activeGericht]}>
+            <TouchableOpacity onPress={() => setAusgewählt(isActive ? null : gericht.id)}>
+              <View style={[styles.gerichtBox, { backgroundColor: themeColor.surface }]}>
+                <Text style={[styles.gerichtName, { color: themeColor.text }]}>{gericht.name}</Text>
+                <Text style={[styles.gerichtBeschreibung, { color: themeColor.text }]}>
+                  {gericht.beschreibung}
+                </Text>
+                <RatingStars value={gericht.bewertung} />
+              </View>
+            </TouchableOpacity>
 
-      <View style={styles.section}>
-        <Text style={[styles.sectionTitle, { color: Colors[theme].text }]}>🗣️ Deine Bewertung</Text>
-        <KommentarBox onSubmit={(data) => console.log(data)} />
-      </View>
+            {isActive && (
+              <View style={[styles.detailBox, { backgroundColor: themeColor.surface }]}>
+                <Text style={[styles.detailTitle, { color: themeColor.text }]}>
+                  Deine Bewertung für {gericht.name}
+                </Text>
+                <KommentarBox onSubmit={(data) => handleKommentarSubmit(gericht.id, data)} />
 
-      <View style={styles.section}>
-        <Text style={[styles.sectionTitle, { color: Colors[theme].text }]}>💬 Kommentare</Text>
-        {gericht.kommentare.map((kommentar, index) => (
-          <Animatable.View
-            key={kommentar.id}
-            animation="fadeInLeft"   // ✅ Slide-in von links
-            duration={500}
-            delay={index * 150}      // ✅ Gestaffelte Verzögerung pro Kommentar
-          >
-            <ChatBubble
-              user={kommentar.user}
-              text={kommentar.text}
-              stars={kommentar.stars}
-            />
-          </Animatable.View>
-        ))}
-      </View>
+                <Text style={[styles.detailTitle, { color: themeColor.text }]}>
+                  Kommentare zu {gericht.name}
+                </Text>
+                {gericht.kommentare.length === 0 && (
+                  <Text style={{ color: themeColor.icon, marginBottom: 8 }}>
+                    Noch keine Kommentare
+                  </Text>
+                )}
+                {gericht.kommentare.map((kommentar, index) => (
+                  <Animatable.View
+                    key={kommentar.id}
+                    animation="fadeInDown"
+                    duration={400}
+                    delay={index * 80}
+                  >
+                    <ChatBubble
+                      user={kommentar.user}
+                      text={kommentar.text}
+                      stars={kommentar.stars}
+                      own={kommentar.own}
+                    />
+                  </Animatable.View>
+                ))}
+              </View>
+            )}
+          </View>
+        );
+      })}
     </ScrollView>
   );
 }
@@ -62,36 +146,47 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   title: {
-    fontSize: 36,
-    fontWeight: '900',
+    fontSize: 32,
+    fontWeight: '800',
     textAlign: 'center',
-    marginBottom: 24,
+    marginBottom: 20,
     textTransform: 'uppercase',
-    letterSpacing: 1.5,
-    textShadowColor: 'rgba(0,0,0,0.15)',
-    textShadowOffset: { width: 1, height: 2 },
-    textShadowRadius: 3,
+  },
+  gerichtWrapper: {
+    marginBottom: 20,
   },
   gerichtBox: {
-    marginBottom: 28,
     padding: 16,
-    borderRadius: 10,
+    borderRadius: 12,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 4,
   },
   gerichtName: {
     fontSize: 20,
     fontWeight: '700',
-    marginBottom: 6,
+    marginBottom: 4,
   },
   gerichtBeschreibung: {
-    fontSize: 16,
+    fontSize: 15,
     marginBottom: 8,
   },
-  section: {
-    marginBottom: 28,
+  activeGericht: {
+    borderColor: '#ccc',
+    borderWidth: 1,
+    borderRadius: 12,
+    backgroundColor: 'rgba(0,0,0,0.03)',
   },
-  sectionTitle: {
-    fontSize: 18,
+  detailBox: {
+    marginTop: 12,
+    padding: 12,
+    borderRadius: 10,
+    gap: 12,
+  },
+  detailTitle: {
+    fontSize: 17,
     fontWeight: '600',
-    marginBottom: 10,
   },
 });

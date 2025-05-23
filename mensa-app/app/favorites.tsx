@@ -15,8 +15,8 @@ import { Colors } from '../constants/Colors';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Animatable from 'react-native-animatable';
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 
-// Android LayoutAnimation aktivieren
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
@@ -30,6 +30,14 @@ const mockFavoritesData = [
 ];
 
 export default function FavoritesScreen() {
+  return (
+    <SafeAreaProvider>
+      <FavoritesInner />
+    </SafeAreaProvider>
+  );
+}
+
+function FavoritesInner() {
   const theme = useColorScheme() || 'light';
 
   const [favorites, setFavorites] = useState<number[]>([]);
@@ -52,8 +60,14 @@ export default function FavoritesScreen() {
     loadPreferences();
   }, []);
 
-  const savePreferences = async (updatedFavorites: number[], updatedAlerts: Record<number, boolean>) => {
-    await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify({ favorites: updatedFavorites, alerts: updatedAlerts }));
+  const savePreferences = async (
+    updatedFavorites: number[],
+    updatedAlerts: Record<number, boolean>
+  ) => {
+    await AsyncStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({ favorites: updatedFavorites, alerts: updatedAlerts })
+    );
   };
 
   const toggleAlert = (id: number) => {
@@ -101,7 +115,7 @@ export default function FavoritesScreen() {
   const visibleFavorites = mockFavoritesData.filter((g) => favorites.includes(g.id));
 
   return (
-    <View style={[styles.container, { backgroundColor: Colors[theme].background }]}>
+    <SafeAreaView style={[styles.container, { backgroundColor: Colors[theme].background }]}>
       <Text style={styles.title}>Deine Favoriten</Text>
 
       <TouchableOpacity onPress={toggleLegend} style={styles.legendToggle}>
@@ -196,7 +210,7 @@ export default function FavoritesScreen() {
       >
         <Text style={{ color: '#000', fontWeight: 'bold' }}>🗑️ AsyncStorage zurücksetzen</Text>
       </TouchableOpacity>
-    </View>
+    </SafeAreaView>
   );
 }
 

@@ -17,9 +17,18 @@ import { Colors } from '../constants/Colors';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { supabase } from '../constants/supabase'; // ✅ Supabase import
+import { supabase } from '../constants/supabase';
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 
 export default function HomeScreen() {
+  return (
+    <SafeAreaProvider>
+      <InnerHomeScreen />
+    </SafeAreaProvider>
+  );
+}
+
+function InnerHomeScreen() {
   const theme = useColorScheme() || 'light';
   const router = useRouter();
   const [showOnboarding, setShowOnboarding] = useState(false);
@@ -31,7 +40,6 @@ export default function HomeScreen() {
 
   const iconColor = Colors[theme].text;
 
-  // ✅ Check ob Nutzer eingeloggt ist
   useEffect(() => {
     const checkSession = async () => {
       const {
@@ -40,7 +48,7 @@ export default function HomeScreen() {
       } = await supabase.auth.getSession();
 
       if (!session || error) {
-        router.replace('/userLogin'); // Kein Zugriff ohne Login
+        router.replace('/userLogin');
         return;
       }
 
@@ -64,13 +72,11 @@ export default function HomeScreen() {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: Colors[theme].background }]}>
+    <SafeAreaView style={[styles.container, { backgroundColor: Colors[theme].background }]}>
       <View style={styles.topBar}>
         <AnimatedIcon
           name="heart-outline"
-          onPress={() => {
-            router.push('/favorites');
-          }}
+          onPress={() => router.push('/favorites')}
           color={iconColor}
         />
         <AnimatedIcon
@@ -128,7 +134,7 @@ export default function HomeScreen() {
           </View>
         </View>
       </Modal>
-    </View>
+    </SafeAreaView>
   );
 }
 
