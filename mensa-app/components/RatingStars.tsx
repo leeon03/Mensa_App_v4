@@ -3,16 +3,23 @@ import { View, TouchableOpacity, StyleSheet, Animated } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useColorScheme } from 'react-native';
 import { Colors } from '../constants/Colors';
-import * as Haptics from 'expo-haptics'; // ✅ Haptics importieren
+import * as Haptics from 'expo-haptics';
 
 type Props = {
   value: number;
   editable?: boolean;
   onChange?: (value: number) => void;
+  customColor?: string; // 👈 NEU: Individuelle Farbwahl
 };
 
-export default function RatingStars({ value, editable = false, onChange }: Props) {
+export default function RatingStars({
+  value,
+  editable = false,
+  onChange,
+  customColor,
+}: Props) {
   const theme = useColorScheme() || 'light';
+  const themeColor = Colors[theme];
 
   const scales = React.useRef(
     Array.from({ length: 5 }, () => new Animated.Value(1))
@@ -36,10 +43,8 @@ export default function RatingStars({ value, editable = false, onChange }: Props
   const handlePress = (index: number) => {
     if (!editable) return;
 
-    // ✅ Haptisches Feedback
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-
-    if (onChange) onChange(index + 1);
+    onChange?.(index + 1);
     bounce(index);
   };
 
@@ -47,14 +52,22 @@ export default function RatingStars({ value, editable = false, onChange }: Props
     <View style={styles.starRow}>
       {Array.from({ length: 5 }).map((_, i) => {
         const filled = i < value;
+        const iconName = filled ? 'star' : 'star-outline';
+        const color = customColor
+          ? customColor
+          : filled
+          ? themeColor.accent2
+          : themeColor.icon;
+
         return (
-          <TouchableOpacity key={i} onPress={() => handlePress(i)} disabled={!editable}>
+          <TouchableOpacity
+            key={i}
+            onPress={() => handlePress(i)}
+            disabled={!editable}
+            activeOpacity={0.7}
+          >
             <Animated.View style={{ transform: [{ scale: scales[i] }] }}>
-              <Ionicons
-                name={filled ? 'star' : 'star-outline'}
-                size={24}
-                color={filled ? Colors[theme].accent2 : Colors[theme].icon}
-              />
+              <Ionicons name={iconName} size={24} color={color} />
             </Animated.View>
           </TouchableOpacity>
         );

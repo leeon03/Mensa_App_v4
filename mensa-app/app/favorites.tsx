@@ -16,6 +16,8 @@ import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Animatable from 'react-native-animatable';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
+import { Audio } from 'expo-av';
+import * as Haptics from 'expo-haptics';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -60,6 +62,16 @@ function FavoritesInner() {
     loadPreferences();
   }, []);
 
+  const playSound = async (file: any) => {
+  const { sound } = await Audio.Sound.createAsync(file);
+  await sound.playAsync();
+};
+
+
+  const triggerHaptic = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+  };
+
   const savePreferences = async (
     updatedFavorites: number[],
     updatedAlerts: Record<number, boolean>
@@ -70,11 +82,40 @@ function FavoritesInner() {
     );
   };
 
-  const toggleAlert = (id: number) => {
-    const updated = { ...alerts, [id]: !alerts[id] };
-    setAlerts(updated);
-    savePreferences(favorites, updated);
-  };
+  const toggleAlert = async (id: number) => {
+  triggerHaptic();
+  const isNowActive = !alerts[id];
+  const updated = { ...alerts, [id]: isNowActive };
+  setAlerts(updated);
+  savePreferences(favorites, updated);
+
+  if (isNowActive) {
+    await playSound(require('../assets/sounds/glocke.wav'));
+  }
+};
+
+const removeFromFavorites = (id: number) => {
+  Alert.alert(
+    'Favorit entfernen',
+    'Möchtest du dieses Gericht wirklich aus deinen Favoriten löschen?',
+    [
+      { text: 'Abbrechen', style: 'cancel' },
+      {
+        text: 'Entfernen',
+        style: 'destructive',
+        onPress: async () => {
+          triggerHaptic();
+          const updatedFavorites = favorites.filter((fid) => fid !== id);
+          const updatedAlerts = { ...alerts };
+          delete updatedAlerts[id];
+          setFavorites(updatedFavorites);
+          setAlerts(updatedAlerts);
+          savePreferences(updatedFavorites, updatedAlerts);
+        },
+      },
+    ]
+  );
+};
 
   const toggleLegend = () => {
     LayoutAnimation.easeInEaseOut();
@@ -89,28 +130,6 @@ function FavoritesInner() {
       {tags.includes('beliebt') && <Text style={styles.tag}>🔥</Text>}
     </View>
   );
-
-  const removeFromFavorites = (id: number) => {
-    Alert.alert(
-      'Favorit entfernen',
-      'Möchtest du dieses Gericht wirklich aus deinen Favoriten löschen?',
-      [
-        { text: 'Abbrechen', style: 'cancel' },
-        {
-          text: 'Entfernen',
-          style: 'destructive',
-          onPress: () => {
-            const updatedFavorites = favorites.filter((fid) => fid !== id);
-            const updatedAlerts = { ...alerts };
-            delete updatedAlerts[id];
-            setFavorites(updatedFavorites);
-            setAlerts(updatedAlerts);
-            savePreferences(updatedFavorites, updatedAlerts);
-          },
-        },
-      ]
-    );
-  };
 
   const visibleFavorites = mockFavoritesData.filter((g) => favorites.includes(g.id));
 
@@ -159,7 +178,13 @@ function FavoritesInner() {
               <View style={[styles.item, { backgroundColor: Colors[theme].card }]}>
                 <View style={styles.itemHeader}>
                   <Animatable.View animation="bounceIn">
-                    <TouchableOpacity onPress={() => removeFromFavorites(item.id)}>
+                    <TouchableOpacity
+                      onPress={() => {
+                      triggerHaptic();
+                      removeFromFavorites(item.id);
+            }}
+>
+
                       <Ionicons name="heart" size={20} color="red" />
                     </TouchableOpacity>
                   </Animatable.View>

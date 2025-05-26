@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import {
   View, Text, StyleSheet, Dimensions, TouchableOpacity,
-  Platform, Modal, LayoutAnimation, UIManager, ActivityIndicator,
+  Platform, Modal, LayoutAnimation, UIManager, ActivityIndicator, Alert
 } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -10,8 +10,9 @@ import { useColorScheme } from 'react-native';
 import RatingStars from '../components/RatingStars';
 import { Ionicons } from '@expo/vector-icons';
 import { addDays, startOfWeek, format, isSameDay } from 'date-fns';
-import { supabase } from '../constants/supabase';
-import { importMealsFromOpenMensa } from '../api/importMeals';
+import * as Haptics from 'expo-haptics';
+import { Audio } from 'expo-av';
+import * as Animatable from 'react-native-animatable';
 
 const screenWidth = Dimensions.get('window').width;
 
@@ -41,36 +42,18 @@ function InnerSpeiseplanScreen() {
   const daysOfWeek = Array.from({ length: 5 }, (_, i) => addDays(startOfCurrentWeek, i));
   const weekLabel = `${format(daysOfWeek[0], 'dd.MM.yyyy')} - ${format(daysOfWeek[4], 'dd.MM.yyyy')}`;
 
-  const fetchGerichte = async (date: Date) => {
-    setLoading(true);
-    const isoDate = date.toISOString().split('T')[0];
-    const { data, error } = await supabase
-      .from('gerichte')
-      .select('*')
-      .eq('datum', isoDate)
-      .order('name', { ascending: true });
-
-    if (error) {
-      console.error('Fehler beim Laden der Gerichte:', error.message);
-      setGerichte([]);
-    } else {
-      setGerichte(data || []);
-    }
-
-    setLoading(false);
-  };
-
   useEffect(() => {
-  const loadAndImport = async () => {
-    const isoDate = selectedDate.toISOString().split('T')[0];
-
-    await importMealsFromOpenMensa(isoDate); // Jetzt ohne ID
-    await fetchGerichte(selectedDate);
-  };
-
-  loadAndImport();
-}, [selectedDate]);
-    
+    const dummyGerichte = [
+      { id: 1, name: 'Käsespätzle', beschreibung: 'Mit Röstzwiebeln und Salat', bewertung: 4, tags: ['vegetarisch', 'beliebt'] },
+      { id: 2, name: 'Currywurst', beschreibung: 'Mit Pommes Frites', bewertung: 3, tags: ['scharf'] },
+      { id: 3, name: 'Vegane Gemüsepfanne', beschreibung: 'Mit Reis und Sojasauce', bewertung: 5, tags: ['vegan', 'beliebt'] },
+    ];
+    setLoading(true);
+    setTimeout(() => {
+      setGerichte(dummyGerichte);
+      setLoading(false);
+    }, 500);
+  }, [selectedDate]);
 
   const handleDateChange = (event: any, date?: Date) => {
     if (event?.type === 'dismissed') {
@@ -86,12 +69,44 @@ function InnerSpeiseplanScreen() {
     const newDate = addDays(selectedDate, direction === 'next' ? 7 : -7);
     setSelectedDate(newDate);
   };
-  const toggleFavorite = (id: number) => setFavorites((prev) => ({ ...prev, [id]: !prev[id] }));
-  const toggleAlert = (id: number) => setAlerts((prev) => ({ ...prev, [id]: !prev[id] }));
-  const getWeekdayShort = (date: Date) => format(date, 'EE');
-  const toggleLegend = () => {
-    LayoutAnimation.easeInEaseOut();
-    setShowLegend(!showLegend);
+
+  const triggerHaptic = () => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+  const playSound = async (file: any) => {
+    const { sound } = await Audio.Sound.createAsync(file);
+    await sound.playAsync();
+  };
+
+  const handleToggleFavorite = async (id: number) => {
+    if (!favorites[id]) {
+      triggerHaptic();
+      await playSound(require('../assets/sounds/heart.wav'));
+      setFavorites((prev) => ({ ...prev, [id]: true }));
+    } else {
+      Alert.alert(
+        'Favorit entfernen',
+        'Möchtest du dieses Gericht wirklich aus deinen Favoriten löschen?',
+        [
+          { text: 'Abbrechen', style: 'cancel' },
+          {
+            text: 'Entfernen',
+            style: 'destructive',
+            onPress: () => {
+              triggerHaptic();
+              setFavorites((prev) => ({ ...prev, [id]: false }));
+            },
+          },
+        ]
+      );
+    }
+  };
+
+  const handleToggleAlert = async (id: number) => {
+    const isNowActive = !alerts[id];
+    setAlerts((prev) => ({ ...prev, [id]: isNowActive }));
+    if (isNowActive) {
+      triggerHaptic();
+      await playSound(require('../assets/sounds/glocke.wav'));
+    }
   };
 
   return (
@@ -125,7 +140,7 @@ function InnerSpeiseplanScreen() {
             ]}
           >
             <Text style={{ color: isSameDay(day, selectedDate) ? '#fff' : Colors[theme].text, fontWeight: '600' }}>
-              {getWeekdayShort(day)}
+              {format(day, 'EE')}
             </Text>
             <Text style={{ color: isSameDay(day, selectedDate) ? '#fff' : Colors[theme].text, fontSize: 12 }}>
               {format(day, 'dd.MM')}
@@ -142,104 +157,49 @@ function InnerSpeiseplanScreen() {
           onChange={handleDateChange}
         />
       )}
-      {Platform.OS === 'ios' && (
-        <Modal transparent animationType="slide" visible={showDatePicker}>
-          <View style={styles.modalOverlay}>
-            <View style={[styles.modalContent, { backgroundColor: Colors[theme].background }]}>
-              <DateTimePicker value={selectedDate} mode="date" display="spinner" onChange={handleDateChange} />
-              <TouchableOpacity onPress={() => setShowDatePicker(false)} style={styles.doneButton}>
-                <Text style={[styles.doneText, { color: Colors[theme].accent1 }]}>Fertig</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </Modal>
-      )}
-
-      <TouchableOpacity onPress={toggleLegend} style={styles.legendToggle}>
-        <Text style={[styles.legendeTitle, { color: Colors[theme].text }]}>Legende {showLegend ? '▲' : '▼'}</Text>
-      </TouchableOpacity>
-
-      {showLegend && (
-        <View style={[styles.legendeContainer, { backgroundColor: Colors[theme].surface }]}>
-          <View style={styles.legendeChip}><Text style={styles.chipText}>🌱 Vegan</Text></View>
-          <View style={styles.legendeChip}><Text style={styles.chipText}>🥦 Vegetarisch</Text></View>
-          <View style={styles.legendeChip}><Text style={styles.chipText}>🌶️ Scharf</Text></View>
-          <View style={styles.legendeChip}><Text style={styles.chipText}>🔥 Beliebt</Text></View>
-          <View style={styles.legendeChip}>
-            <Ionicons name="heart" size={14} color="red" style={{ marginRight: 4 }} />
-            <Text style={styles.chipText}>Favorit</Text>
-          </View>
-          <View style={styles.legendeChip}>
-            <Ionicons name="notifications" size={14} color="#007AFF" style={{ marginRight: 4 }} />
-            <Text style={styles.chipText}>Erinnerung</Text>
-          </View>
-        </View>
-      )}
 
       {loading ? (
         <ActivityIndicator size="large" />
-      ) : gerichte.length === 0 ? (
-        <Text style={[styles.emptyText, { color: Colors[theme].text }]}>Kein Essen eingetragen</Text>
       ) : (
         gerichte.map((gericht) => (
-          <GerichtCard
-            key={gericht.id}
-            gericht={gericht}
-            isFavorite={!!favorites[gericht.id]}
-            isAlerted={!!alerts[gericht.id]}
-            onToggleFavorite={toggleFavorite}
-            onToggleAlert={toggleAlert}
-          />
+          <Animatable.View key={gericht.id} animation="fadeInUp" duration={500} delay={gericht.id * 100}>
+            <View style={[styles.card, { backgroundColor: Colors[theme].card }]}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Text style={[styles.cardTitle, { color: Colors[theme].text }]}>{gericht.name}</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <Animatable.View animation="bounceIn">
+                    <TouchableOpacity onPress={() => handleToggleFavorite(gericht.id)}>
+                      <Ionicons
+                        name={favorites[gericht.id] ? 'heart' : 'heart-outline'}
+                        size={20}
+                        color={favorites[gericht.id] ? 'red' : Colors[theme].icon}
+                      />
+                    </TouchableOpacity>
+                  </Animatable.View>
+                  <Animatable.View animation="pulse" duration={300}>
+                    <TouchableOpacity style={{ marginLeft: 12 }} onPress={() => handleToggleAlert(gericht.id)}>
+                      <Ionicons
+                        name={alerts[gericht.id] ? 'notifications' : 'notifications-outline'}
+                        size={20}
+                        color={alerts[gericht.id] ? '#007AFF' : Colors[theme].icon}
+                      />
+                    </TouchableOpacity>
+                  </Animatable.View>
+                </View>
+              </View>
+              <Text style={[styles.cardText, { color: Colors[theme].text }]}>{gericht.beschreibung}</Text>
+              <View style={styles.tagRow}>
+                {gericht.tags?.includes('vegan') && <Text style={styles.tag}>🌱</Text>}
+                {gericht.tags?.includes('vegetarisch') && <Text style={styles.tag}>🥦</Text>}
+                {gericht.tags?.includes('scharf') && <Text style={styles.tag}>🌶️</Text>}
+                {gericht.tags?.includes('beliebt') && <Text style={styles.tag}>🔥</Text>}
+              </View>
+              <RatingStars value={gericht.bewertung} />
+            </View>
+          </Animatable.View>
         ))
       )}
     </SafeAreaView>
-  );
-}
-
-function GerichtCard({
-  gericht,
-  isFavorite,
-  isAlerted,
-  onToggleFavorite,
-  onToggleAlert,
-}: {
-  gericht: any;
-  isFavorite: boolean;
-  isAlerted: boolean;
-  onToggleFavorite: (id: number) => void;
-  onToggleAlert: (id: number) => void;
-}) {
-  const theme = useColorScheme() || 'light';
-  return (
-    <View style={[styles.card, { backgroundColor: Colors[theme].card }]}>
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Text style={[styles.cardTitle, { color: Colors[theme].text }]}>{gericht.name}</Text>
-        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-          <TouchableOpacity onPress={() => onToggleFavorite(gericht.id)} style={{ marginLeft: 8 }}>
-            <Ionicons
-              name={isFavorite ? 'heart' : 'heart-outline'}
-              size={20}
-              color={isFavorite ? 'red' : Colors[theme].icon}
-            />
-          </TouchableOpacity>
-          <TouchableOpacity onPress={() => onToggleAlert(gericht.id)} style={{ marginLeft: 8 }}>
-            <Ionicons
-              name={isAlerted ? 'notifications' : 'notifications-outline'}
-              size={20}
-              color={isAlerted ? '#007AFF' : Colors[theme].icon}
-            />
-          </TouchableOpacity>
-        </View>
-      </View>
-      <Text style={[styles.cardText, { color: Colors[theme].text }]}>{gericht.beschreibung}</Text>
-      <View style={styles.tagRow}>
-        {gericht.tags?.includes('vegan') && <Text style={styles.tag}>🌱</Text>}
-        {gericht.tags?.includes('vegetarisch') && <Text style={styles.tag}>🥦</Text>}
-        {gericht.tags?.includes('scharf') && <Text style={styles.tag}>🌶️</Text>}
-        {gericht.tags?.includes('beliebt') && <Text style={styles.tag}>🔥</Text>}
-      </View>
-      <RatingStars value={gericht.bewertung} />
-    </View>
   );
 }
 
@@ -256,9 +216,6 @@ const styles = StyleSheet.create({
     marginBottom: 24,
     textTransform: 'uppercase',
     letterSpacing: 1.5,
-    textShadowColor: 'rgba(0,0,0,0.15)',
-    textShadowOffset: { width: 1, height: 2 },
-    textShadowRadius: 3,
   },
   weekHeader: {
     flexDirection: 'row',
@@ -281,36 +238,6 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     alignItems: 'center',
     width: 56,
-  },
-  legendToggle: {
-    alignSelf: 'flex-start',
-    paddingVertical: 6,
-  },
-  legendeTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 4,
-  },
-  legendeContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'flex-start',
-    padding: 10,
-    borderRadius: 12,
-    marginBottom: 12,
-  },
-  legendeChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#f0f0f0',
-    borderRadius: 20,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    margin: 4,
-  },
-  chipText: {
-    fontSize: 13,
-    color: '#333',
   },
   card: {
     borderRadius: 12,
@@ -337,27 +264,5 @@ const styles = StyleSheet.create({
   tag: {
     fontSize: 16,
     marginRight: 6,
-  },
-  emptyText: {
-    fontStyle: 'italic',
-    marginVertical: 16,
-    textAlign: 'center',
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.3)',
-    justifyContent: 'flex-end',
-  },
-  modalContent: {
-    padding: 16,
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
-  },
-  doneButton: {
-    alignSelf: 'flex-end',
-    marginTop: 8,
-  },
-  doneText: {
-    fontSize: 16,
   },
 });

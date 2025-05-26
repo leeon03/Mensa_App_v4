@@ -13,20 +13,39 @@ type Props = {
 
 export default function ChatBubble({ user, text, stars, own = false }: Props) {
   const theme = useColorScheme() || 'light';
+  const themeColor = Colors[theme];
 
+  const isDark = theme === 'dark';
   const alignmentStyle = own ? styles.bubbleRight : styles.bubbleLeft;
-  const bubbleColor = own ? Colors[theme].accent2 : Colors[theme].surface;
-  const textColor = own ? Colors[theme].background : Colors[theme].text;
   const containerAlignment = own ? styles.rowRight : styles.rowLeft;
+
+  const bubbleBackgroundColor = own
+    ? themeColor.accent2
+    : isDark
+    ? '#1f1f1f'
+    : themeColor.surface;
+
+  const textColor = own ? '#fff' : themeColor.text;
+  const starColor = own
+    ? isDark
+      ? '#111' // dunkler Ton bei orange im Dark Mode
+      : '#fff'
+    : themeColor.accent2;
 
   return (
     <View style={[styles.row, containerAlignment]}>
-      <View style={[styles.bubble, alignmentStyle, { backgroundColor: bubbleColor }]}>
+      <View
+        style={[
+          styles.bubble,
+          alignmentStyle,
+          { backgroundColor: bubbleBackgroundColor, borderColor: isDark ? '#333' : '#ddd' },
+        ]}
+      >
         <Text style={[styles.user, { color: textColor }]}>
           {own ? 'Du' : `${user}`} sagt:
         </Text>
         <View style={styles.starsWrapper}>
-          <RatingStars value={stars} editable={false} />
+          <RatingStars value={stars} editable={false} customColor={starColor} />
         </View>
         <Text style={[styles.text, { color: textColor }]}>{text}</Text>
       </View>
@@ -37,7 +56,7 @@ export default function ChatBubble({ user, text, stars, own = false }: Props) {
 const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
-    marginVertical: 4,
+    marginVertical: 6,
   },
   rowLeft: {
     justifyContent: 'flex-start',
@@ -49,8 +68,9 @@ const styles = StyleSheet.create({
   },
   bubble: {
     maxWidth: '80%',
-    padding: 12,
+    padding: 14,
     borderRadius: 16,
+    borderWidth: 1,
     shadowColor: '#000',
     shadowOpacity: 0.07,
     shadowOffset: { width: 0, height: 2 },
