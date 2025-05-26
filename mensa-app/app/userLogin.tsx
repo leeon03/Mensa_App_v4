@@ -43,6 +43,11 @@ export default function UserLoginScreen() {
       return;
     }
 
+    if (!data.session) {
+      Alert.alert('Fehler', 'Session konnte nicht hergestellt werden.');
+      return;
+    }
+
     router.replace('/startseite');
   };
 

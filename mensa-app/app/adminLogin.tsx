@@ -40,10 +40,15 @@ export default function AdminLoginScreen() {
       return;
     }
 
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
 
     if (error) {
       Alert.alert('Fehler beim Login', error.message);
+      return;
+    }
+
+    if (!data.session) {
+      Alert.alert('Fehler', 'Session konnte nicht hergestellt werden.');
       return;
     }
 

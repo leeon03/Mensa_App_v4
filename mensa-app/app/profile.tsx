@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -40,13 +40,34 @@ function ProfileContent() {
 
   const [editOpen, setEditOpen] = useState(false);
   const [notifyOpen, setNotifyOpen] = useState(false);
-  const [name, setName] = useState('Max Mustermann');
-  const [email, setEmail] = useState('max@beispiel.de');
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [createdAt, setCreatedAt] = useState('');
   const [notifyFavs, setNotifyFavs] = useState(true);
   const [notifyNews, setNotifyNews] = useState(false);
   const [oldPassword, setOldPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [repeatPassword, setRepeatPassword] = useState('');
+
+  // Daten beim Laden der Seite holen
+  useEffect(() => {
+    const loadUserData = async () => {
+      const { data: { user }, error } = await supabase.auth.getUser();
+
+      if (error || !user) {
+        Alert.alert('Fehler beim Laden der Benutzerdaten');
+        return;
+      }
+
+      const first = user.user_metadata?.first_name || '';
+      const last = user.user_metadata?.last_name || '';
+      setName(`${first} ${last}`.trim());
+      setEmail(user.email || '');
+      setCreatedAt(new Date(user.created_at).toLocaleDateString('de-DE'));
+    };
+
+    loadUserData();
+  }, []);
 
   const toggleEdit = () => {
     LayoutAnimation.easeInEaseOut();
@@ -72,17 +93,48 @@ function ProfileContent() {
     ]);
   };
 
-  const handlePasswordChange = () => {
-    if (!oldPassword || !newPassword || !repeatPassword) {
+  const updateProfile = async () => {
+    const [first_name, ...lastParts] = name.split(' ');
+    const last_name = lastParts.join(' ') || '';
+
+    const { error } = await supabase.auth.updateUser({
+      email,
+      data: {
+        first_name,
+        last_name,
+        display_name: name,
+      },
+    });
+
+    if (error) {
+      Alert.alert('Fehler', error.message);
+      return;
+    }
+
+    Alert.alert('Erfolg', 'Profil wurde aktualisiert.');
+  };
+
+  const handlePasswordChange = async () => {
+    if (!newPassword || !repeatPassword) {
       Alert.alert('Fehler', 'Bitte alle Felder ausfüllen.');
       return;
     }
+
     if (newPassword !== repeatPassword) {
       Alert.alert('Fehler', 'Die neuen Passwörter stimmen nicht überein.');
       return;
     }
 
-    Alert.alert('Erfolg', 'Das Passwort wurde geändert.');
+    const { error } = await supabase.auth.updateUser({
+      password: newPassword,
+    });
+
+    if (error) {
+      Alert.alert('Fehler', error.message);
+      return;
+    }
+
+    Alert.alert('Erfolg', 'Passwort wurde geändert.');
     setOldPassword('');
     setNewPassword('');
     setRepeatPassword('');
@@ -101,13 +153,14 @@ function ProfileContent() {
       <Text style={[styles.email, { color: Colors[theme].text }]}>{email}</Text>
 
       <View style={[styles.infoBox, { backgroundColor: Colors[theme].card }]}>
-        <Text style={[styles.infoText, { color: Colors[theme].text }]}>Mitglied seit: Januar 2024</Text>
+        <Text style={[styles.infoText, { color: Colors[theme].text }]}>Mitglied seit: {createdAt}</Text>
         <Text style={[styles.infoText, { color: Colors[theme].text }]}>Favorisierte Gerichte: 12</Text>
       </View>
 
       <TouchableOpacity onPress={toggleEdit} style={styles.button}>
         <Text style={styles.buttonText}>📝 Profil bearbeiten</Text>
       </TouchableOpacity>
+
       {editOpen && (
         <View style={[styles.panelModern, { backgroundColor: Colors[theme].surface, shadowColor: Colors[theme].primary }]}>
           <Text style={[styles.panelTitle, { color: Colors[theme].text }]}>Profilinformationen</Text>
@@ -126,16 +179,14 @@ function ProfileContent() {
             placeholderTextColor="#aaa"
             keyboardType="email-address"
           />
+          <TouchableOpacity
+            onPress={updateProfile}
+            style={[styles.saveButton, { backgroundColor: Colors[theme].primary }]}
+          >
+            <Text style={styles.saveButtonText}>💾 Änderungen speichern</Text>
+          </TouchableOpacity>
 
           <Text style={[styles.panelTitle, { color: Colors[theme].text, marginTop: 16 }]}>🔐 Passwort ändern</Text>
-          <TextInput
-            style={[styles.inputModern, { borderColor: Colors[theme].primary, color: Colors[theme].text }]}
-            placeholder="Aktuelles Passwort"
-            placeholderTextColor="#aaa"
-            secureTextEntry
-            value={oldPassword}
-            onChangeText={setOldPassword}
-          />
           <TextInput
             style={[styles.inputModern, { borderColor: Colors[theme].primary, color: Colors[theme].text }]}
             placeholder="Neues Passwort"
@@ -156,7 +207,7 @@ function ProfileContent() {
             onPress={handlePasswordChange}
             style={[styles.saveButton, { backgroundColor: Colors[theme].primary }]}
           >
-            <Text style={styles.saveButtonText}>💾 Änderungen speichern</Text>
+            <Text style={styles.saveButtonText}>🔁 Passwort speichern</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -164,6 +215,7 @@ function ProfileContent() {
       <TouchableOpacity onPress={toggleNotify} style={styles.button}>
         <Text style={styles.buttonText}>🔔 Benachrichtigungen verwalten</Text>
       </TouchableOpacity>
+
       {notifyOpen && (
         <View style={[styles.panel, { backgroundColor: Colors[theme].surface }]}>
           <View style={styles.switchRow}>
@@ -196,9 +248,7 @@ const styles = StyleSheet.create({
     padding: 24,
     alignItems: 'center',
   },
-  icon: {
-    marginBottom: 12,
-  },
+  icon: { marginBottom: 12 },
   title: {
     fontSize: 36,
     fontWeight: '900',
@@ -206,29 +256,16 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     textTransform: 'uppercase',
     letterSpacing: 1.5,
-    textShadowColor: 'rgba(0,0,0,0.15)',
-    textShadowOffset: { width: 1, height: 2 },
-    textShadowRadius: 3,
   },
-  name: {
-    fontSize: 22,
-    fontWeight: '700',
-    marginBottom: 4,
-  },
-  email: {
-    fontSize: 16,
-    marginBottom: 20,
-  },
+  name: { fontSize: 22, fontWeight: '700', marginBottom: 4 },
+  email: { fontSize: 16, marginBottom: 20 },
   infoBox: {
     padding: 20,
     borderRadius: 12,
     width: '100%',
     marginBottom: 20,
   },
-  infoText: {
-    fontSize: 16,
-    marginBottom: 8,
-  },
+  infoText: { fontSize: 16, marginBottom: 8 },
   button: {
     paddingVertical: 14,
     paddingHorizontal: 20,
@@ -237,11 +274,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     width: '100%',
   },
-  buttonText: {
-    fontWeight: '600',
-    textAlign: 'center',
-    fontSize: 16,
-  },
+  buttonText: { fontWeight: '600', textAlign: 'center', fontSize: 16 },
   panel: {
     width: '100%',
     borderRadius: 12,
@@ -254,9 +287,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 12,
   },
-  switchLabel: {
-    fontSize: 16,
-  },
+  switchLabel: { fontSize: 16 },
   resetButton: {
     marginTop: 12,
     padding: 12,
@@ -264,10 +295,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     alignSelf: 'center',
   },
-  resetButtonText: {
-    color: '#000',
-    fontWeight: 'bold',
-  },
+  resetButtonText: { color: '#000', fontWeight: 'bold' },
   logoutButton: {
     marginTop: 24,
     paddingVertical: 14,
@@ -281,11 +309,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowRadius: 4,
   },
-  logoutButtonText: {
-    color: '#fff',
-    fontWeight: 'bold',
-    fontSize: 16,
-  },
+  logoutButtonText: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
   panelModern: {
     width: '100%',
     borderRadius: 16,
@@ -296,11 +320,7 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
     elevation: 3,
   },
-  panelTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    marginBottom: 12,
-  },
+  panelTitle: { fontSize: 18, fontWeight: '700', marginBottom: 12 },
   inputModern: {
     borderWidth: 1.5,
     borderRadius: 10,
@@ -316,9 +336,5 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: 'center',
   },
-  saveButtonText: {
-    color: '#fff',
-    fontWeight: 'bold',
-    fontSize: 16,
-  },
+  saveButtonText: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
 });

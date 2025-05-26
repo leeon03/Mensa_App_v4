@@ -203,7 +203,7 @@ function AnimatedIcon({
   return (
     <TouchableOpacity onPress={handlePress} activeOpacity={0.8}>
       <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
-        <Ionicons name={name} size={28} color={tempColor || color} style={styles.icon} />
+        <Ionicons name={name} size={35} color={tempColor || color} style={styles.icon} />
       </Animated.View>
     </TouchableOpacity>
   );
@@ -218,7 +218,7 @@ const styles = StyleSheet.create({
   },
   topBar: {
     position: 'absolute',
-    top: 50,
+    top: 70,
     right: 24,
     flexDirection: 'row',
     gap: 16,
