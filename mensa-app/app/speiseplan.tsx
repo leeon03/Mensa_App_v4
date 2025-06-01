@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import {
   View, Text, StyleSheet, Dimensions, TouchableOpacity,
-  Platform, Modal, LayoutAnimation, UIManager, ActivityIndicator, Alert
+  Platform, Modal, LayoutAnimation, UIManager, ActivityIndicator, Alert,
+  Image, FlatList, ScrollView
 } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -20,6 +21,42 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
+// Define TypeScript interfaces for dish data
+interface Dish {
+  id: number;
+  name: string;
+  anzeigename: string;
+  beschreibung: string;
+  kategorie?: string;
+  tags: string[];
+  bewertung: number;
+  preis: string;
+  bild_url: string;
+}
+
+// Color mapping for tags
+const tagColors: { [key: string]: string } = {
+  'vegan': '#4CAF50',
+  'vegetarisch': '#8BC34A',
+  'glutenfrei': '#FF9800',
+  'scharf': '#F44336',
+  'hausgemacht': '#FF5722',
+  'klassiker': '#3F51B5',
+  'leicht': '#03A9F4',
+  'süß': '#E91E63',
+  'beliebt': '#FF4081'
+};
+
+// Utility to determine text color based on background
+const isColorDark = (hexColor: string): boolean => {
+  const hex = hexColor.replace('#', '');
+  const r = parseInt(hex.substring(0, 2), 16);
+  const g = parseInt(hex.substring(2, 4), 16);
+  const b = parseInt(hex.substring(4, 6), 16);
+  const brightness = (0.299 * r + 0.587 * g + 0.114 * b);
+  return brightness < 128;
+};
+
 export default function SpeiseplanScreen() {
   return (
     <SafeAreaProvider>
@@ -31,29 +68,89 @@ export default function SpeiseplanScreen() {
 function InnerSpeiseplanScreen() {
   const theme = useColorScheme() || 'light';
   const [selectedDate, setSelectedDate] = useState(new Date());
-  const [gerichte, setGerichte] = useState<any[]>([]);
+  const [gerichte, setGerichte] = useState<Dish[]>([]);
   const [loading, setLoading] = useState(true);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [favorites, setFavorites] = useState<Record<number, boolean>>({});
   const [alerts, setAlerts] = useState<Record<number, boolean>>({});
   const [showLegend, setShowLegend] = useState(false);
+  const [sound, setSound] = useState<Audio.Sound | null>(null);
 
   const startOfCurrentWeek = startOfWeek(selectedDate, { weekStartsOn: 1 });
   const daysOfWeek = Array.from({ length: 5 }, (_, i) => addDays(startOfCurrentWeek, i));
   const weekLabel = `${format(daysOfWeek[0], 'dd.MM.yyyy')} - ${format(daysOfWeek[4], 'dd.MM.yyyy')}`;
 
   useEffect(() => {
-    const dummyGerichte = [
-      { id: 1, name: 'Käsespätzle', beschreibung: 'Mit Röstzwiebeln und Salat', bewertung: 4, tags: ['vegetarisch', 'beliebt'] },
-      { id: 2, name: 'Currywurst', beschreibung: 'Mit Pommes Frites', bewertung: 3, tags: ['scharf'] },
-      { id: 3, name: 'Vegane Gemüsepfanne', beschreibung: 'Mit Reis und Sojasauce', bewertung: 5, tags: ['vegan', 'beliebt'] },
+    const dummyGerichte: Dish[] = [
+      { 
+        id: 1, 
+        name: 'Käsespätzle', 
+        anzeigename: 'Käsespätzle mit Röstzwiebeln',
+        beschreibung: 'Mit Röstzwiebeln und Salat', 
+        bewertung: 4, 
+        tags: ['vegetarisch', 'beliebt'], 
+        preis: '8,90 €',
+        bild_url: 'https://images.pexels.com/photos/12737656/pexels-photo-12737656.jpeg'
+      },
+      { 
+        id: 2, 
+        name: 'Currywurst', 
+        anzeigename: 'Currywurst Spezial',
+        beschreibung: 'Mit Pommes Frites und hausgemachter Currysoße', 
+        bewertung: 3, 
+        tags: ['scharf', 'klassiker'], 
+        preis: '7,50 €',
+        bild_url: 'https://images.pexels.com/photos/1603901/pexels-photo-1603901.jpeg'
+      },
+      { 
+        id: 3, 
+        name: 'Vegane Gemüsepfanne', 
+        anzeigename: 'Vegane Gemüsepfanne',
+        beschreibung: 'Mit Reis und Sojasauce', 
+        bewertung: 5, 
+        tags: ['vegan', 'leicht'], 
+        preis: '9,20 €',
+        bild_url: 'https://images.pexels.com/photos/1099680/pexels-photo-1099680.jpeg'
+      },
     ];
+    
+    // Initialize favorite and alert states
+    const initialFavState: Record<number, boolean> = {};
+    const initialAlertState: Record<number, boolean> = {};
+    dummyGerichte.forEach(d => {
+      initialFavState[d.id] = false;
+      initialAlertState[d.id] = false;
+    });
+    setFavorites(initialFavState);
+    setAlerts(initialAlertState);
+    
     setLoading(true);
     setTimeout(() => {
       setGerichte(dummyGerichte);
       setLoading(false);
     }, 500);
   }, [selectedDate]);
+
+  // Load sound effect
+  useEffect(() => {
+    let soundObj: Audio.Sound;
+    const loadSound = async () => {
+      try {
+        const { sound } = await Audio.Sound.createAsync(require('../assets/sounds/click.mp3'));
+        soundObj = sound;
+        setSound(soundObj);
+      } catch (error) {
+        console.warn('Sound loading error', error);
+      }
+    };
+    loadSound();
+    
+    return () => {
+      if (soundObj) {
+        soundObj.unloadAsync();
+      }
+    };
+  }, []);
 
   const handleDateChange = (event: any, date?: Date) => {
     if (event?.type === 'dismissed') {
@@ -68,45 +165,56 @@ function InnerSpeiseplanScreen() {
   const changeWeek = (direction: 'prev' | 'next') => {
     const newDate = addDays(selectedDate, direction === 'next' ? 7 : -7);
     setSelectedDate(newDate);
+    Haptics.selectionAsync().catch(() => {});
   };
 
   const triggerHaptic = () => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-  const playSound = async (file: any) => {
-    const { sound } = await Audio.Sound.createAsync(file);
-    await sound.playAsync();
-  };
 
   const handleToggleFavorite = async (id: number) => {
-    if (!favorites[id]) {
-      triggerHaptic();
-      await playSound(require('../assets/sounds/heart.wav'));
-      setFavorites((prev) => ({ ...prev, [id]: true }));
-    } else {
-      Alert.alert(
-        'Favorit entfernen',
-        'Möchtest du dieses Gericht wirklich aus deinen Favoriten löschen?',
-        [
-          { text: 'Abbrechen', style: 'cancel' },
-          {
-            text: 'Entfernen',
-            style: 'destructive',
-            onPress: () => {
-              triggerHaptic();
-              setFavorites((prev) => ({ ...prev, [id]: false }));
-            },
-          },
-        ]
-      );
+    setFavorites(prev => ({ ...prev, [id]: !prev[id] }));
+    triggerHaptic();
+    if (sound) {
+      try {
+        await sound.replayAsync();
+      } catch (error) {
+        console.warn('Sound play error', error);
+      }
     }
   };
 
   const handleToggleAlert = async (id: number) => {
-    const isNowActive = !alerts[id];
-    setAlerts((prev) => ({ ...prev, [id]: isNowActive }));
-    if (isNowActive) {
-      triggerHaptic();
-      await playSound(require('../assets/sounds/glocke.wav'));
+    setAlerts(prev => ({ ...prev, [id]: !prev[id] }));
+    triggerHaptic();
+    if (sound) {
+      try {
+        await sound.replayAsync();
+      } catch (error) {
+        console.warn('Sound play error', error);
+      }
     }
+  };
+
+  const renderStars = (rating: number) => {
+    const stars = [];
+    const fullStars = Math.floor(rating);
+    const halfStar = rating - fullStars >= 0.5;
+    
+    for (let i = 1; i <= 5; i++) {
+      let iconName: any;
+      if (i <= fullStars) {
+        iconName = 'star';
+      } else if (i === fullStars + 1 && halfStar) {
+        iconName = 'star-half';
+      } else {
+        iconName = 'star-outline';
+      }
+      
+      const iconColor = iconName === 'star-outline' ? Colors[theme].text : '#FFD700';
+      stars.push(
+        <Ionicons key={i} name={iconName} size={16} color={iconColor} />
+      );
+    }
+    return stars;
   };
 
   return (
@@ -159,45 +267,117 @@ function InnerSpeiseplanScreen() {
       )}
 
       {loading ? (
-        <ActivityIndicator size="large" />
+        <ActivityIndicator size="large" color={Colors[theme].accent1} />
       ) : (
-        gerichte.map((gericht) => (
-          <Animatable.View key={gericht.id} animation="fadeInUp" duration={500} delay={gericht.id * 100}>
-            <View style={[styles.card, { backgroundColor: Colors[theme].card }]}>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Text style={[styles.cardTitle, { color: Colors[theme].text }]}>{gericht.name}</Text>
-                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  <Animatable.View animation="bounceIn">
-                    <TouchableOpacity onPress={() => handleToggleFavorite(gericht.id)}>
-                      <Ionicons
-                        name={favorites[gericht.id] ? 'heart' : 'heart-outline'}
-                        size={20}
-                        color={favorites[gericht.id] ? 'red' : Colors[theme].icon}
-                      />
-                    </TouchableOpacity>
-                  </Animatable.View>
-                  <Animatable.View animation="pulse" duration={300}>
-                    <TouchableOpacity style={{ marginLeft: 12 }} onPress={() => handleToggleAlert(gericht.id)}>
-                      <Ionicons
-                        name={alerts[gericht.id] ? 'notifications' : 'notifications-outline'}
-                        size={20}
-                        color={alerts[gericht.id] ? '#007AFF' : Colors[theme].icon}
-                      />
-                    </TouchableOpacity>
-                  </Animatable.View>
+        <FlatList
+          data={gerichte}
+          keyExtractor={(item) => item.id.toString()}
+          renderItem={({ item, index }) => (
+            <Animatable.View 
+              animation="fadeInUp" 
+              duration={600} 
+              delay={index * 100}
+              style={styles.cardContainer}
+            >
+              <View style={[
+                styles.card, 
+                { 
+                  backgroundColor: Colors[theme].card,
+                  shadowColor: Colors[theme].text,
+                }
+              ]}>
+                {/* Dish Image */}
+                <Image 
+                  source={{ uri: item.bild_url }} 
+                  style={styles.cardImage} 
+                  resizeMode="cover"
+                />
+                
+                {/* Favorite & Alert Icons */}
+                <View style={styles.iconContainer}>
+                  <TouchableOpacity 
+                    onPress={() => handleToggleFavorite(item.id)} 
+                    style={styles.iconButton}
+                  >
+                    <Ionicons 
+                      name={favorites[item.id] ? 'heart' : 'heart-outline'} 
+                      size={24} 
+                      color={favorites[item.id] ? 'red' : '#FFF'} 
+                    />
+                  </TouchableOpacity>
+                  
+                  <TouchableOpacity 
+                    onPress={() => handleToggleAlert(item.id)} 
+                    style={[styles.iconButton, { marginLeft: 10 }]}
+                  >
+                    <Ionicons 
+                      name={alerts[item.id] ? 'notifications' : 'notifications-outline'} 
+                      size={24} 
+                      color={alerts[item.id] ? '#FFD700' : '#FFF'} 
+                    />
+                  </TouchableOpacity>
+                </View>
+                
+                {/* Card Content */}
+                <View style={styles.cardContent}>
+                {/* Category */}
+                {item.kategorie && (
+                  <Text style={[styles.categoryText, { color: Colors[theme].text }]}>
+                    {item.kategorie}
+                  </Text>
+                )}
+                  
+                  {/* Title */}
+                  <Text style={[styles.titleText, { color: Colors[theme].text }]}>
+                    {item.anzeigename}
+                  </Text>
+                  
+                  {/* Description */}
+                  <Text style={[styles.descriptionText, { color: Colors[theme].text }]}>
+                    {item.beschreibung}
+                  </Text>
+                  
+                  {/* Tags */}
+                  {item.tags && item.tags.length > 0 && (
+                    <View style={styles.tagContainer}>
+                      {item.tags.map((tag) => {
+                        const bgColor = tagColors[tag] || '#888';
+                        const textColor = isColorDark(bgColor) ? '#FFF' : '#000';
+                        return (
+                          <Text 
+                            key={tag} 
+                            style={[
+                              styles.tag, 
+                              { 
+                                backgroundColor: bgColor, 
+                                color: textColor 
+                              }
+                            ]}
+                          >
+                            {tag}
+                          </Text>
+                        );
+                      })}
+                    </View>
+                  )}
+                  
+                  {/* Rating and Price */}
+                  <View style={styles.footerRow}>
+                    {/* Rating Stars */}
+                    <View style={styles.starContainer}>
+                      {renderStars(item.bewertung)}
+                    </View>
+                    
+                    {/* Price */}
+                    <Text style={[styles.priceText, { color: Colors[theme].text }]}>
+                      {item.preis}
+                    </Text>
+                  </View>
                 </View>
               </View>
-              <Text style={[styles.cardText, { color: Colors[theme].text }]}>{gericht.beschreibung}</Text>
-              <View style={styles.tagRow}>
-                {gericht.tags?.includes('vegan') && <Text style={styles.tag}>🌱</Text>}
-                {gericht.tags?.includes('vegetarisch') && <Text style={styles.tag}>🥦</Text>}
-                {gericht.tags?.includes('scharf') && <Text style={styles.tag}>🌶️</Text>}
-                {gericht.tags?.includes('beliebt') && <Text style={styles.tag}>🔥</Text>}
-              </View>
-              <RatingStars value={gericht.bewertung} />
-            </View>
-          </Animatable.View>
-        ))
+            </Animatable.View>
+          )}
+        />
       )}
     </SafeAreaView>
   );
@@ -230,7 +410,7 @@ const styles = StyleSheet.create({
   dayRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 12,
+    marginBottom: 16,
   },
   dayButton: {
     paddingVertical: 6,
@@ -239,30 +419,78 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     width: 56,
   },
+  cardContainer: {
+    marginBottom: 16,
+  },
   card: {
     borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOpacity: 0.05,
-    shadowRadius: 5,
-    elevation: 2,
+    overflow: 'hidden',
+    shadowOpacity: 0.1,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 4,
+    elevation: 3,
   },
-  cardTitle: {
-    fontSize: 17,
-    fontWeight: '600',
+  cardImage: {
+    width: '100%',
+    height: 180,
   },
-  cardText: {
-    fontSize: 14,
-    marginTop: 4,
-  },
-  tagRow: {
+  iconContainer: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
     flexDirection: 'row',
-    marginTop: 6,
+  },
+  iconButton: {
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    padding: 6,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cardContent: {
+    padding: 16,
+  },
+  categoryText: {
+    fontSize: 12,
+    fontWeight: '600',
     marginBottom: 4,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  titleText: {
+    fontSize: 18,
+    fontWeight: '700',
+    marginBottom: 8,
+  },
+  descriptionText: {
+    fontSize: 14,
+    marginBottom: 12,
+    lineHeight: 20,
+  },
+  tagContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginBottom: 12,
   },
   tag: {
-    fontSize: 16,
+    fontSize: 12,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: 10,
+    overflow: 'hidden',
     marginRight: 6,
+    marginBottom: 6,
+  },
+  footerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  starContainer: {
+    flexDirection: 'row',
+  },
+  priceText: {
+    fontSize: 16,
+    fontWeight: '700',
   },
 });

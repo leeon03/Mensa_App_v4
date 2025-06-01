@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -6,38 +6,60 @@ import {
   TouchableOpacity,
   useColorScheme,
   Image,
+  ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Colors } from '../constants/Colors';
 import * as Haptics from 'expo-haptics';
-import { supabase } from '../constants/supabase';
+import {
+  fetchDataFromRenderAPI,
+  saveDataToSupabase,
+  completeMissingGerichte,
+} from '../hooks/dataSync';
 
 type ScreenRoute = 'userLogin' | 'register' | 'adminLogin';
 
 export default function LoginScreen() {
   const theme = useColorScheme() || 'light';
   const router = useRouter();
+  const [loading, setLoading] = useState(true);
 
-  // ✅ Session automatisch prüfen
   useEffect(() => {
-    const checkSession = async () => {
-      const { data } = await supabase.auth.getSession();
-      if (data.session) {
-        router.replace('/startseite');
+    const syncData = async () => {
+      try {
+        const apiData = await fetchDataFromRenderAPI();
+        await saveDataToSupabase(apiData);
+        await completeMissingGerichte(); // 🔄 Automatisch unvollständige Einträge ergänzen
+      } catch (err) {
+        console.error('Fehler beim Datenimport oder Metadaten-Ergänzung:', err);
+      } finally {
+        setLoading(false);
       }
     };
-    checkSession();
+
+    syncData();
   }, []);
 
-  const handleOption = (screen: ScreenRoute) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    router.push(`/${screen}`);
-  };
+  const handleOption = useCallback(
+    (screen: ScreenRoute) => {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      router.push(`/${screen}`);
+    },
+    [router]
+  );
 
   const logoSource =
     theme === 'dark'
       ? require('../assets/AppLogoDarkmode.png')
       : require('../assets/AppLogo.png');
+
+  if (loading) {
+    return (
+      <View style={[styles.container, { backgroundColor: Colors[theme].background }]}>
+        <ActivityIndicator size="large" color={Colors[theme].primary} />
+      </View>
+    );
+  }
 
   return (
     <View style={[styles.container, { backgroundColor: Colors[theme].background }]}>
