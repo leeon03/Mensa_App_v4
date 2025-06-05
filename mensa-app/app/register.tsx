@@ -26,6 +26,7 @@ export default function RegisterScreen() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [role, setRole] = useState<'user' | 'admin'>('user');
+  const [adminCode, setAdminCode] = useState('');
   const [focusedField, setFocusedField] = useState<string | null>(null);
 
   const handleRegister = async () => {
@@ -37,6 +38,10 @@ export default function RegisterScreen() {
     }
     if (password !== confirmPassword) {
       Alert.alert('Fehler', 'Die Passwörter stimmen nicht überein.');
+      return;
+    }
+    if (role === 'admin' && adminCode !== 'GEHEIM123') {
+      Alert.alert('Ungültiger Admin-Code', 'Der eingegebene Admin-Code ist falsch.');
       return;
     }
 
@@ -62,7 +67,7 @@ export default function RegisterScreen() {
       first_name: firstName,
       last_name: lastName,
       email: user.email,
-      role: role, // Speichert die ausgewählte Rolle
+      role: role,
     });
 
     if (insertError) {
@@ -188,6 +193,24 @@ export default function RegisterScreen() {
             <Text style={{ color: role === 'admin' ? '#fff' : Colors[theme].text }}>Admin</Text>
           </TouchableOpacity>
         </View>
+
+        {/* Admin-Code nur bei Admin */}
+        {role === 'admin' && (
+          <TextInput
+            style={[styles.input, {
+              backgroundColor: Colors[theme].surface,
+              color: Colors[theme].text,
+              borderColor: focusedField === 'adminCode' ? '#fb8d30' : Colors[theme].icon,
+            }]}
+            placeholder="Admin-Code"
+            placeholderTextColor={Colors[theme].icon}
+            secureTextEntry
+            value={adminCode}
+            onChangeText={setAdminCode}
+            onFocus={() => setFocusedField('adminCode')}
+            onBlur={() => setFocusedField(null)}
+          />
+        )}
 
         <TouchableOpacity
           style={[styles.button, { backgroundColor: '#fb8d30' }]}
