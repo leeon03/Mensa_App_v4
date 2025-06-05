@@ -8,6 +8,7 @@ import {
   PanResponder,
   TouchableOpacity,
   Modal,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../constants/Colors';
@@ -16,15 +17,17 @@ import * as Haptics from 'expo-haptics';
 import LottieView from 'lottie-react-native';
 import { BlurView } from 'expo-blur';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
-import { supabase } from '../constants/supabase'; // Pfad ggf. anpassen
+import { supabase } from '../constants/supabase';
 
 const screenWidth = Dimensions.get('window').width;
 
-const gerichte = [
-  { id: 1, name: 'Käsespätzle', beschreibung: 'Mit Röstzwiebeln und Salat', tags: ['vegetarisch'] },
-  { id: 2, name: 'Chili sin Carne', beschreibung: 'Vegan, mit Brot', tags: ['vegan', 'scharf'] },
-  { id: 3, name: 'Schnitzel mit Pommes', beschreibung: 'Klassiker mit Zitrone', tags: [] },
-];
+interface Gericht {
+  id: number;
+  name: string;
+  beschreibung: string;
+  tags: string[];
+  bild_url?: string;
+}
 
 export default function TinderScreen() {
   return (
@@ -38,12 +41,14 @@ export default function TinderScreen() {
 
 function SwipeScreen() {
   const theme = useColorScheme() || 'light';
+  const [gerichte, setGerichte] = useState<Gericht[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [favorites, setFavorites] = useState<number[]>([]);
   const [swipeDirection, setSwipeDirection] = useState<'like' | 'dislike' | null>(null);
   const [showMatch, setShowMatch] = useState(false);
   const [introVisible, setIntroVisible] = useState(true);
   const [introStep, setIntroStep] = useState(1);
+  const [loading, setLoading] = useState(true);
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
   const position = useRef(new Animated.ValueXY()).current;
@@ -77,6 +82,25 @@ function SwipeScreen() {
       useNativeDriver: true,
     }).start();
   }, [introStep]);
+
+  useEffect(() => {
+    const loadGerichte = async () => {
+      const { data, error } = await supabase.from('gerichte').select('*');
+      if (error) {
+        console.error('Fehler beim Laden der Gerichte:', error.message);
+        return;
+      }
+
+      const uniqueById = Array.from(
+        new Map(data.map((g: Gericht) => [g.id, g])).values()
+      );
+
+      setGerichte(uniqueById);
+      setLoading(false);
+    };
+
+    loadGerichte();
+  }, []);
 
   const rotate = position.x.interpolate({
     inputRange: [-200, 0, 200],
@@ -148,6 +172,14 @@ function SwipeScreen() {
 
   const currentGericht = gerichte[currentIndex];
 
+  if (loading) {
+    return (
+      <View style={styles.centered}>
+        <ActivityIndicator size="large" color={Colors[theme].accent1} />
+      </View>
+    );
+  }
+
   if (!currentGericht) {
     return (
       <View style={styles.centered}>
@@ -161,8 +193,8 @@ function SwipeScreen() {
     if (!user) return;
 
     await supabase
-    .from('intro_flags')
-    .upsert({ user_id: user.id, seen_intro: true });
+      .from('intro_flags')
+      .upsert({ user_id: user.id, seen_intro: true });
     setIntroVisible(false);
   };
 
@@ -198,9 +230,10 @@ function SwipeScreen() {
         </View>
       </Modal>
 
-      {/* Swipe UI */}
+      {/* Header */}
       <Text style={[styles.header, { color: Colors[theme].accent3 }]}>Essens Tinder</Text>
 
+      {/* Card */}
       <Animated.View
         {...panResponder.panHandlers}
         style={[styles.card, swipeCardStyle, { backgroundColor: Colors[theme].card }]}
@@ -223,6 +256,7 @@ function SwipeScreen() {
         </View>
       </Animated.View>
 
+      {/* Swipe Buttons */}
       <View style={styles.buttons}>
         <Animated.View style={{ transform: [{ scale: dislikeScale }] }}>
           <TouchableOpacity onPress={() => handleSwipe('dislike')} style={styles.iconButton}>
@@ -236,7 +270,7 @@ function SwipeScreen() {
         </Animated.View>
       </View>
 
-      {/* Match Popup */}
+      {/* Match Modal */}
       <Modal visible={showMatch} transparent animationType="fade">
         <TouchableOpacity activeOpacity={1} onPress={() => setShowMatch(false)} style={styles.matchContainer}>
           <BlurView intensity={40} tint="light" style={styles.matchCard}>
@@ -258,7 +292,6 @@ function SwipeScreen() {
   );
 }
 
-// StyleSheet bleibt unverändert wie in deiner ursprünglichen Datei
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -418,33 +451,32 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
   },
   introControls: {
-  marginTop: 30,
-  flexDirection: 'row',
-  justifyContent: 'center',
-  alignItems: 'center',
-},
-arrowButton: {
-  backgroundColor: '#fff',
-  padding: 12,
-  borderRadius: 50,
-  elevation: 4,
-  shadowColor: '#000',
-  shadowOpacity: 0.2,
-  shadowRadius: 6,
-},
-startButton: {
-  backgroundColor: '#2ecc71',
-  paddingVertical: 12,
-  paddingHorizontal: 28,
-  borderRadius: 24,
-  shadowColor: '#000',
-  shadowOpacity: 0.3,
-  shadowRadius: 6,
-},
-startButtonText: {
-  color: '#fff',
-  fontSize: 16,
-  fontWeight: '600',
-},
-
+    marginTop: 30,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  arrowButton: {
+    backgroundColor: '#fff',
+    padding: 12,
+    borderRadius: 50,
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+  },
+  startButton: {
+    backgroundColor: '#2ecc71',
+    paddingVertical: 12,
+    paddingHorizontal: 28,
+    borderRadius: 24,
+    shadowColor: '#000',
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+  },
+  startButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
 });

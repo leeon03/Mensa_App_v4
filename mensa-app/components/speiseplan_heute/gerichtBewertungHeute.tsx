@@ -4,8 +4,8 @@ import KommentarBox from './KommentarBox';
 import ChatBubble from './ChatBubble';
 import * as Animatable from 'react-native-animatable';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors } from '../constants/Colors';
-import { supabase } from '../constants/supabase';
+import { Colors } from '../../constants/Colors';
+import { supabase } from '../../constants/supabase';
 
 type Kommentar = {
   id: number;

@@ -16,10 +16,10 @@ import { useColorScheme } from 'react-native';
 import * as Animatable from 'react-native-animatable';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import Card from '../components/ui/card';
-import Legende from '../components/legende';
+import Legende from '../components/speiseplan_heute/legende';
 import { supabase } from '../constants/supabase';
 import { format } from 'date-fns';
-import GerichtBewertungHeute from '../components/gerichtBewertungHeute';
+import GerichtBewertungHeute from '../components/speiseplan_heute/gerichtBewertungHeute';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);

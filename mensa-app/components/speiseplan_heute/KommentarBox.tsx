@@ -14,7 +14,7 @@ import {
 import { useHeaderHeight } from '@react-navigation/elements';
 import RatingStars from './RatingStars';
 import { useColorScheme } from 'react-native';
-import { Colors } from '../constants/Colors';
+import { Colors } from '../../constants/Colors';
 import LottieView from 'lottie-react-native';
 import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';
