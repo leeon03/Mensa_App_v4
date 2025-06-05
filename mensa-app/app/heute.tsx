@@ -9,6 +9,7 @@ import {
   Platform,
   UIManager,
   ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
 import { Colors } from '../constants/Colors';
 import { useColorScheme } from 'react-native';
@@ -24,25 +25,31 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
-type Kommentar = {
+interface Kommentar {
   id: number;
-  user: string;
-  text: string;
   stars: number;
-  own?: boolean;
-};
+  text: string;
+  user: string;
+  own: boolean;
+}
 
-type Gericht = {
+interface Bewertung {
+  stars: number;
+  gericht_name: string;
+}
+
+interface Gericht {
   id: number;
   name: string;
-  anzeigename?: string;
+  anzeigename: string;
   beschreibung: string;
-  bewertung: number;
-  kommentare: Kommentar[];
+  kategorie?: string;
   tags: string[];
-  bild_url?: string;
-  preis?: number;
-};
+  preis: string;
+  bild_url: string;
+  datum: string;
+  kommentare: Kommentar[];
+}
 
 export default function HeuteScreen() {
   return (
@@ -59,11 +66,13 @@ function HeuteContent() {
   const themeColor = Colors[theme];
 
   const [gerichte, setGerichte] = useState<Gericht[]>([]);
+  const [bewertungen, setBewertungen] = useState<Bewertung[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [userId, setUserId] = useState<string | null>(null);
   const [ausgewählt, setAusgewählt] = useState<number | null>(null);
   const [favorites, setFavorites] = useState<Record<number, boolean>>({});
   const [alerts, setAlerts] = useState<Record<number, boolean>>({});
-  const [loading, setLoading] = useState(true);
-  const [userId, setUserId] = useState<string | null>(null);
 
   const fetchGerichte = async () => {
     setLoading(true);
@@ -73,27 +82,39 @@ function HeuteContent() {
     const currentUserId = userRes.data.user?.id || null;
     setUserId(currentUserId);
 
-    const { data, error } = await supabase
-      .from('gerichte')
-      .select('*')
-      .eq('datum', today);
+    const [gerichteRes, bewertungenRes] = await Promise.all([
+      supabase.from('gerichte').select('*').eq('datum', today),
+      supabase
+        .from('bewertungen')
+        .select('stars, gerichte:bewertungen_gericht_id_fkey(name)')
+        .eq('gerichte.datum', today),
+    ]);
 
-    if (error) {
-      console.error('Fehler beim Laden:', error);
-      Alert.alert('Fehler', 'Gerichte konnten nicht geladen werden.');
+    if (gerichteRes.error || bewertungenRes.error) {
+      console.error('Fehler beim Laden:', gerichteRes.error || bewertungenRes.error);
+      Alert.alert('Fehler', 'Daten konnten nicht geladen werden.');
       setLoading(false);
       return;
     }
 
+    const fetchedBewertungen: Bewertung[] = (bewertungenRes.data || [])
+      .filter((b: any) => b.gerichte && b.gerichte.name)
+      .map((b: any) => ({
+        stars: b.stars,
+        gericht_name: b.gerichte.name,
+      }));
+
+    setBewertungen(fetchedBewertungen);
+
     const enriched = await Promise.all(
-      (data || []).map(async (gericht) => {
-        const { data: bewertungen } = await supabase
+      (gerichteRes.data || []).map(async (gericht) => {
+        const { data: gerichtBews } = await supabase
           .from('bewertungen')
           .select('id, stars, kommentar, created_at, user_id, users(first_name, last_name)')
           .eq('gericht_id', gericht.id)
           .order('created_at', { ascending: false });
 
-        const kommentare: Kommentar[] = (bewertungen || []).map((bew) => {
+        const kommentare: Kommentar[] = (gerichtBews || []).map((bew) => {
           const firstName = bew.users?.first_name || '';
           const lastInitial = bew.users?.last_name?.charAt(0) || '';
           const formattedName = `${firstName} ${lastInitial}.`.trim();
@@ -109,7 +130,6 @@ function HeuteContent() {
 
         return {
           ...gericht,
-          bewertung: 0,
           kommentare,
         };
       })
@@ -123,52 +143,13 @@ function HeuteContent() {
     fetchGerichte();
   }, []);
 
-  const handleKommentarSubmit = async (gerichtId: number, data: { text: string; stars: number }) => {
-    const userRes = await supabase.auth.getUser();
-    const user = userRes.data.user;
-
-    if (!user) {
-      Alert.alert('Fehler', 'Du musst angemeldet sein, um einen Kommentar zu schreiben.');
-      return;
-    }
-
-    const insertRes = await supabase.from('bewertungen').insert({
-      gericht_id: gerichtId,
-      user_id: user.id,
-      stars: data.stars,
-      kommentar: data.text,
-      created_at: new Date().toISOString(),
-    });
-
-    if (insertRes.error) {
-      console.error('Fehler beim Speichern des Kommentars:', insertRes.error);
-      Alert.alert('Fehler', 'Kommentar konnte nicht gespeichert werden.');
-      return;
-    }
-
-    // Lokale Anzeige des Kommentars ohne Reload
-    const firstName = user.user_metadata?.first_name || 'Du';
-    const lastName = user.user_metadata?.last_name || '';
-    const formattedName = `${firstName} ${lastName.charAt(0)}.`.trim();
-
-    const neuerKommentar: Kommentar = {
-      id: Date.now(),
-      user: formattedName,
-      text: data.text,
-      stars: data.stars,
-      own: true,
-    };
-
-    setGerichte((prev) =>
-      prev.map((gericht) =>
-        gericht.id === gerichtId
-          ? { ...gericht, kommentare: [neuerKommentar, ...gericht.kommentare] }
-          : gericht
-      )
-    );
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await fetchGerichte();
+    setRefreshing(false);
   };
 
-  const handleToggleFavorite = async (gerichtId: number) => {
+  const handleToggleFavorite = (gerichtId: number) => {
     const isActive = favorites[gerichtId];
     if (!isActive) {
       setFavorites((prev) => ({ ...prev, [gerichtId]: true }));
@@ -190,7 +171,7 @@ function HeuteContent() {
     }
   };
 
-  const handleToggleAlert = async (gerichtId: number) => {
+  const handleToggleAlert = (gerichtId: number) => {
     const isNowActive = !alerts[gerichtId];
     setAlerts((prev) => ({ ...prev, [gerichtId]: isNowActive }));
   };
@@ -204,7 +185,10 @@ function HeuteContent() {
   }
 
   return (
-    <ScrollView style={[styles.container, { backgroundColor: themeColor.background }]}>
+    <ScrollView
+      style={[styles.container, { backgroundColor: themeColor.background }]}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+    >
       <Animatable.Text
         animation="fadeInDown"
         delay={100}
@@ -215,46 +199,53 @@ function HeuteContent() {
 
       <Legende />
 
-      {gerichte.map((gericht) => {
-        const isActive = ausgewählt === gericht.id;
+      {gerichte.length === 0 ? (
+        <Text style={{ textAlign: 'center', marginTop: 40, color: themeColor.text }}>
+          Keine Gerichte für heute gefunden.
+        </Text>
+      ) : (
+        gerichte.map((gericht) => {
+          const isActive = ausgewählt === gericht.id;
+          const gerichtBewertungen = bewertungen.filter(
+            (b) => b.gericht_name === gericht.name
+          );
 
-        return (
-          <Animatable.View
-            key={gericht.id}
-            animation="fadeInUp"
-            delay={gericht.id * 100}
-            style={{ marginBottom: 16 }}
-          >
-            <TouchableOpacity onPress={() => setAusgewählt(isActive ? null : gericht.id)}>
-              <Card
-                name={gericht.name}
-                anzeigename={gericht.anzeigename || gericht.name}
-                beschreibung={gericht.beschreibung}
-                bild_url={gericht.bild_url || 'https://via.placeholder.com/300'}
-                kategorie={gericht.tags[0] || ''}
-                bewertung={gericht.bewertung}
-                tags={gericht.tags}
-                preis={gericht.preis || 4.5}
-                isFavorite={favorites[gericht.id] || false}
-                isAlert={alerts[gericht.id] || false}
-                onFavoritePress={() => handleToggleFavorite(gericht.id)}
-                onAlertPress={() => handleToggleAlert(gericht.id)}
-              />
-            </TouchableOpacity>
+          return (
+            <Animatable.View
+              key={gericht.id}
+              animation="fadeInUp"
+              delay={gericht.id * 100}
+              style={{ marginBottom: 16 }}
+            >
+              <TouchableOpacity onPress={() => setAusgewählt(isActive ? null : gericht.id)}>
+                <Card
+                  name={gericht.name}
+                  anzeigename={gericht.anzeigename}
+                  beschreibung={gericht.beschreibung}
+                  bild_url={gericht.bild_url}
+                  kategorie={gericht.kategorie || ''}
+                  bewertungen={gerichtBewertungen}
+                  tags={gericht.tags}
+                  preis={parseFloat(gericht.preis)}
+                  isFavorite={favorites[gericht.id] || false}
+                  isAlert={alerts[gericht.id] || false}
+                  onFavoritePress={() => handleToggleFavorite(gericht.id)}
+                  onAlertPress={() => handleToggleAlert(gericht.id)}
+                />
+              </TouchableOpacity>
 
-            {isActive && (
-              <GerichtBewertungHeute
-                gerichtName={gericht.name}
-                anzeigeName={gericht.anzeigename || gericht.name}
-                kommentare={gericht.kommentare}
-                onSubmitKommentar={(data) => handleKommentarSubmit(gericht.id, data)}
-                onMehrAnzeigen={() => {}}
-                themeColor={themeColor}
-              />
-            )}
-          </Animatable.View>
-        );
-      })}
+              {isActive && (
+                <GerichtBewertungHeute
+                  gerichtId={gericht.id}
+                  kommentare={gericht.kommentare}
+                  userId={userId}
+                  onUpdate={fetchGerichte}
+                />
+              )}
+            </Animatable.View>
+          );
+        })
+      )}
     </ScrollView>
   );
 }

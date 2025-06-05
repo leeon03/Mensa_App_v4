@@ -1,7 +1,15 @@
 import React, { useEffect, useState } from 'react';
 import {
-  View, Text, StyleSheet, Dimensions, TouchableOpacity,
-  Platform, ActivityIndicator, Alert, FlatList, UIManager
+  View,
+  Text,
+  StyleSheet,
+  Dimensions,
+  TouchableOpacity,
+  Platform,
+  ActivityIndicator,
+  Alert,
+  FlatList,
+  UIManager,
 } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -30,26 +38,10 @@ interface Dish {
   zutaten: string | string[];
 }
 
-const tagColors: { [key: string]: string } = {
-  'vegan': '#4CAF50',
-  'vegetarisch': '#8BC34A',
-  'glutenfrei': '#FF9800',
-  'scharf': '#F44336',
-  'hausgemacht': '#FF5722',
-  'klassiker': '#3F51B5',
-  'leicht': '#03A9F4',
-  'süß': '#E91E63',
-  'beliebt': '#FF4081'
-};
-
-const isColorDark = (hexColor: string): boolean => {
-  const hex = hexColor.replace('#', '');
-  const r = parseInt(hex.substring(0, 2), 16);
-  const g = parseInt(hex.substring(2, 4), 16);
-  const b = parseInt(hex.substring(4, 6), 16);
-  const brightness = (0.299 * r + 0.587 * g + 0.114 * b);
-  return brightness < 128;
-};
+interface Bewertung {
+  stars: number;
+  gericht_name: string;
+}
 
 export default function SpeiseplanScreen() {
   return (
@@ -63,6 +55,7 @@ function InnerSpeiseplanScreen() {
   const theme = useColorScheme() || 'light';
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [gerichte, setGerichte] = useState<Dish[]>([]);
+  const [bewertungen, setBewertungen] = useState<Bewertung[]>([]);
   const [loading, setLoading] = useState(true);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [favorites, setFavorites] = useState<Record<number, boolean>>({});
@@ -82,51 +75,59 @@ function InnerSpeiseplanScreen() {
     try {
       setLoading(true);
       const dateString = format(date, 'yyyy-MM-dd');
-      const { data, error } = await supabase
-        .from('gerichte')
-        .select('*')
-        .eq('datum', dateString);
 
-      if (error) {
-        console.error('Error fetching dishes:', error);
-        Alert.alert('Fehler', 'Gerichte konnten nicht geladen werden');
-        return [];
+      const [gerichteRes, bewertungenRes] = await Promise.all([
+        supabase.from('gerichte').select('*').eq('datum', dateString),
+        supabase
+          .from('bewertungen')
+          .select('stars, gerichte:bewertungen_gericht_id_fkey(name)')
+          .eq('gerichte.datum', dateString),
+      ]);
+
+      if (gerichteRes.error || bewertungenRes.error) {
+        console.error('Fehler beim Laden:', gerichteRes.error || bewertungenRes.error);
+        Alert.alert('Fehler', 'Daten konnten nicht geladen werden');
+        return { gerichte: [], bewertungen: [] };
       }
 
-      const enhancedData = data?.map(dish => {
+      const gerichte: Dish[] = (gerichteRes.data || []).map((dish) => {
         if (!dish.anzeigename || !dish.beschreibung || !dish.bild_url) {
           const meta = generateMetaData({
             name: dish.name,
-            zutaten: dish.zutaten
+            zutaten: dish.zutaten,
           });
           return { ...dish, ...meta };
         }
         return dish;
-      }) || [];
+      });
 
-      return enhancedData;
+      const bewertungen: Bewertung[] = (bewertungenRes.data || [])
+        .filter((b: any) => b.gerichte !== null) // ⬅️ WICHTIG
+        .map((b: any) => ({
+          stars: b.stars,
+          gericht_name: b.gerichte.name,
+        }));
+
+      return { gerichte, bewertungen };
     } catch (error) {
-      console.error('Unexpected error:', error);
+      console.error('Fehler:', error);
       Alert.alert('Fehler', 'Ein unerwarteter Fehler ist aufgetreten');
-      return [];
+      return { gerichte: [], bewertungen: [] };
     }
   };
 
   useEffect(() => {
     const loadDishes = async () => {
-      const dishes = await fetchDishes(selectedDate);
-      setGerichte(dishes);
+      const { gerichte, bewertungen } = await fetchDishes(selectedDate);
+      setGerichte(gerichte);
+      setBewertungen(bewertungen);
 
       const newFavorites = { ...favorites };
       const newAlerts = { ...alerts };
 
-      dishes.forEach(dish => {
-        if (newFavorites[dish.id] === undefined) {
-          newFavorites[dish.id] = false;
-        }
-        if (newAlerts[dish.id] === undefined) {
-          newAlerts[dish.id] = false;
-        }
+      gerichte.forEach((dish) => {
+        if (newFavorites[dish.id] === undefined) newFavorites[dish.id] = false;
+        if (newAlerts[dish.id] === undefined) newAlerts[dish.id] = false;
       });
 
       setFavorites(newFavorites);
@@ -155,11 +156,11 @@ function InnerSpeiseplanScreen() {
   };
 
   const handleToggleFavorite = (id: number) => {
-    setFavorites(prev => ({ ...prev, [id]: !prev[id] }));
+    setFavorites((prev) => ({ ...prev, [id]: !prev[id] }));
   };
 
   const handleToggleAlert = (id: number) => {
-    setAlerts(prev => ({ ...prev, [id]: !prev[id] }));
+    setAlerts((prev) => ({ ...prev, [id]: !prev[id] }));
   };
 
   return (
@@ -224,29 +225,33 @@ function InnerSpeiseplanScreen() {
         <FlatList
           data={gerichte}
           keyExtractor={(item) => item.id.toString()}
-          renderItem={({ item, index }) => (
-            <Animatable.View
-              animation="fadeInUp"
-              duration={600}
-              delay={index * 100}
-              style={styles.cardContainer}
-            >
-              <Card
-                name={item.name}
-                anzeigename={item.anzeigename}
-                beschreibung={item.beschreibung}
-                bild_url={item.bild_url}
-                kategorie={item.kategorie || ''}
-                bewertung={0}
-                tags={item.tags}
-                preis={parseFloat(item.preis)}
-                isFavorite={favorites[item.id]}
-                isAlert={alerts[item.id]}
-                onFavoritePress={() => handleToggleFavorite(item.id)}
-                onAlertPress={() => handleToggleAlert(item.id)}
-              />
-            </Animatable.View>
-          )}
+          renderItem={({ item, index }) => {
+            const gerichtBewertungen = bewertungen.filter((b) => b.gericht_name === item.name);
+
+            return (
+              <Animatable.View
+                animation="fadeInUp"
+                duration={600}
+                delay={index * 100}
+                style={styles.cardContainer}
+              >
+                <Card
+                  name={item.name}
+                  anzeigename={item.anzeigename}
+                  beschreibung={item.beschreibung}
+                  bild_url={item.bild_url}
+                  kategorie={item.kategorie || ''}
+                  bewertungen={gerichtBewertungen}
+                  tags={item.tags}
+                  preis={parseFloat(item.preis)}
+                  isFavorite={favorites[item.id]}
+                  isAlert={alerts[item.id]}
+                  onFavoritePress={() => handleToggleFavorite(item.id)}
+                  onAlertPress={() => handleToggleAlert(item.id)}
+                />
+              </Animatable.View>
+            );
+          }}
         />
       )}
     </SafeAreaView>
