@@ -34,14 +34,10 @@ async function fetchPexelsImage(searchText: string): Promise<string | null> {
 
   try {
     const response = await fetch(url, {
-      headers: {
-        Authorization: apiKey,
-      },
+      headers: { Authorization: apiKey },
     });
-
     const result = await response.json();
     const photo = result.photos?.find((p: any) => p?.src?.large);
-
     return photo?.src?.large || null;
   } catch (error) {
     console.error("❌ Fehler beim Abrufen von Pexels:", error);
@@ -99,21 +95,12 @@ Format:
       return null;
     }
 
-    content = content
-      .replace(/^```json/, "")
-      .replace(/^```/, "")
-      .replace(/```$/, "")
-      .trim();
-
+    content = content.replace(/^```json/, "").replace(/^```/, "").replace(/```$/, "").trim();
     const parsed = JSON.parse(content);
 
     const pexelsImage = await fetchPexelsImage(parsed.bild_suche || name);
     parsed.bild_url = pexelsImage || "https://via.placeholder.com/600x400?text=Kein+Bild";
-
-    parsed.tags = (parsed.tags || []).filter((tag: string) =>
-      ALLOWED_TAGS.includes(tag.toLowerCase())
-    );
-
+    parsed.tags = (parsed.tags || []).filter((tag: string) => ALLOWED_TAGS.includes(tag.toLowerCase()));
     delete parsed.bild_suche;
 
     return parsed;
@@ -124,7 +111,7 @@ Format:
 }
 
 export const completeMissingGerichte = async () => {
-  const { data, error } = await supabase.from('gerichte').select('*').eq('meta_generiert', false);
+  const { data, error } = await supabase.from('gerichte').select('id, name, zutaten').eq('meta_generiert', false);
   if (error || !data) {
     console.error("❌ Fehler beim Laden der Gerichte:", error);
     return;
@@ -170,7 +157,7 @@ export const saveDataToSupabase = async (data: any[]) => {
     if (!allowedCategories.includes(rawCategory)) continue;
 
     const gericht = {
-      name: item.name,
+      name: item.name.trim(),
       zutaten: item.notes || [],
       kategorie: item.category || null,
       datum: item.date || null,
@@ -178,9 +165,12 @@ export const saveDataToSupabase = async (data: any[]) => {
       created_at: new Date().toISOString(),
     };
 
+    if (!gericht.name || !gericht.datum) continue;
+
+    // 🔐 Duplikatprüfung: Kein Gericht mit gleichem Namen und Datum
     const { data: existing, error: selectError } = await supabase
       .from('gerichte')
-      .select('id')
+      .select('*')
       .eq('name', gericht.name)
       .eq('datum', gericht.datum)
       .maybeSingle();
@@ -199,6 +189,13 @@ export const saveDataToSupabase = async (data: any[]) => {
         console.error('❌ Fehler beim Einfügen:', insertError);
       }
     } else {
+      const aktualisierungNoetig =
+        JSON.stringify(existing.zutaten) !== JSON.stringify(gericht.zutaten) ||
+        existing.kategorie !== gericht.kategorie ||
+        existing.preis !== gericht.preis;
+
+      if (!aktualisierungNoetig) continue;
+
       const { error: updateError } = await supabase
         .from('gerichte')
         .update({
