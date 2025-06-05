@@ -60,16 +60,17 @@ export default function UserLoginScreen() {
         contentContainerStyle={[styles.container, { backgroundColor: Colors[theme].background }]}
         keyboardShouldPersistTaps="handled"
       >
-        <Text style={[styles.title, { color: '#63a53d' }]}>
-          Benutzer Login
-        </Text>
+        <Text style={[styles.title, { color: '#63a53d' }]}>Benutzer Login</Text>
 
         <TextInput
-          style={[styles.input, {
-            backgroundColor: Colors[theme].surface,
-            color: Colors[theme].text,
-            borderColor: emailFocused ? '#63a53d' : Colors[theme].icon,
-          }]}
+          style={[
+            styles.input,
+            {
+              backgroundColor: Colors[theme].surface,
+              color: Colors[theme].text,
+              borderColor: emailFocused ? '#63a53d' : Colors[theme].icon,
+            },
+          ]}
           placeholder="E-Mail"
           placeholderTextColor={Colors[theme].icon}
           keyboardType="email-address"
@@ -81,11 +82,14 @@ export default function UserLoginScreen() {
         />
 
         <TextInput
-          style={[styles.input, {
-            backgroundColor: Colors[theme].surface,
-            color: Colors[theme].text,
-            borderColor: passwordFocused ? '#63a53d' : Colors[theme].icon,
-          }]}
+          style={[
+            styles.input,
+            {
+              backgroundColor: Colors[theme].surface,
+              color: Colors[theme].text,
+              borderColor: passwordFocused ? '#63a53d' : Colors[theme].icon,
+            },
+          ]}
           placeholder="Passwort"
           placeholderTextColor={Colors[theme].icon}
           secureTextEntry
@@ -95,10 +99,7 @@ export default function UserLoginScreen() {
           onBlur={() => setPasswordFocused(false)}
         />
 
-        <TouchableOpacity
-          style={[styles.button, { backgroundColor: '#63a53d' }]}
-          onPress={handleLogin}
-        >
+        <TouchableOpacity style={[styles.button, { backgroundColor: '#63a53d' }]} onPress={handleLogin}>
           <Text style={styles.buttonText}>Einloggen</Text>
         </TouchableOpacity>
       </ScrollView>
