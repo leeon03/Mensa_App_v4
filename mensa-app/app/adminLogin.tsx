@@ -16,7 +16,7 @@ import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
 import { supabase } from '../constants/supabase';
 
-const ADMIN_CODE = '1234'; // 🔐 Dein Admin-Code
+const ADMIN_CODE = 'GEHEIM1234'; // 🔐 Dein Admin-Code
 
 export default function AdminLoginScreen() {
   const theme = useColorScheme() || 'light';
@@ -42,16 +42,26 @@ export default function AdminLoginScreen() {
 
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
 
-    if (error) {
-      Alert.alert('Fehler beim Login', error.message);
+    if (error || !data.session || !data.user) {
+      Alert.alert('Fehler beim Login', error?.message || 'Unbekannter Fehler');
       return;
     }
 
-    if (!data.session) {
-      Alert.alert('Fehler', 'Session konnte nicht hergestellt werden.');
+    const { user } = data;
+
+    // 🔒 Prüfen, ob Rolle wirklich "admin" ist
+    const { data: profile, error: profileError } = await supabase
+      .from('users')
+      .select('role')
+      .eq('id', user.id)
+      .single();
+
+    if (profileError || profile?.role !== 'admin') {
+      Alert.alert('Zugriff verweigert', 'Du bist kein Admin.');
       return;
     }
 
+    // ✅ Login erfolgreich, Admin bestätigt
     router.replace('/startseite');
   };
 
@@ -152,5 +162,5 @@ const styles = StyleSheet.create({
     color: '#000',
     fontWeight: '600',
     fontSize: 16,
-  }, 
+  },
 });
