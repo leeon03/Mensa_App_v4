@@ -1,10 +1,11 @@
 import React, { useState, useMemo } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, useColorScheme } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, useColorScheme, Alert } from 'react-native';
 import KommentarBox from './KommentarBox';
 import ChatBubble from './ChatBubble';
 import * as Animatable from 'react-native-animatable';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../constants/Colors';
+import { supabase } from '../constants/supabase';
 
 type Kommentar = {
   id: number;
@@ -17,26 +18,21 @@ type Kommentar = {
 };
 
 type Props = {
-  gerichtName: string;
-  anzeigeName: string;
+  gerichtId: number; // ✅ geändert von string zu number
   kommentare: Kommentar[];
-  onSubmitKommentar: (data: { text: string; stars: number }) => void;
-  onMehrAnzeigen?: () => void;
-  themeColor?: typeof Colors['light'];
+  userId: string | null;
+  onUpdate: () => void;
 };
 
-export default function GerichtDetail({
-  gerichtName,
-  anzeigeName,
+export default function GerichtBewertungHeute({
+  gerichtId,
   kommentare,
-  onSubmitKommentar,
-  onMehrAnzeigen,
-  themeColor,
+  userId,
+  onUpdate,
 }: Props) {
   const scheme = useColorScheme() || 'light';
-  const colors = themeColor || Colors[scheme];
+  const colors = Colors[scheme];
 
-  const angezeigterName = anzeigeName?.trim() || gerichtName?.trim() || 'dieses Gericht';
   const [localKommentare, setLocalKommentare] = useState<Kommentar[]>([]);
 
   const hatBereitsBewertet = useMemo(() => {
@@ -59,7 +55,7 @@ export default function GerichtDetail({
     return now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
-  const handleKommentarSubmit = (data: { text: string; stars: number }) => {
+  const handleKommentarSubmit = async (data: { text: string; stars: number }) => {
     const neuerKommentar: Kommentar = {
       id: Date.now(),
       user: 'Du',
@@ -71,7 +67,20 @@ export default function GerichtDetail({
     };
 
     setLocalKommentare(prev => [neuerKommentar, ...prev]);
-    onSubmitKommentar(data);
+
+    const { error } = await supabase.from('bewertungen').insert({
+      gericht_id: gerichtId,
+      user_id: userId,
+      kommentar: data.text,
+      stars: data.stars,
+    });
+
+    if (error) {
+      console.error('Fehler beim Speichern des Kommentars:', error);
+      Alert.alert('Fehler', 'Dein Kommentar konnte nicht gespeichert werden.');
+    } else {
+      onUpdate();
+    }
   };
 
   return (
@@ -80,20 +89,8 @@ export default function GerichtDetail({
       duration={400}
       style={[styles.detailBox, { backgroundColor: colors.card, shadowColor: colors.text }]}
     >
-      {onMehrAnzeigen && (
-        <TouchableOpacity
-          onPress={onMehrAnzeigen}
-          style={[styles.detailButton, { backgroundColor: colors.accent2 }]}
-          accessibilityLabel={`Mehr Informationen zu ${angezeigterName} anzeigen`}
-          accessibilityRole="button"
-        >
-          <Ionicons name="information-circle-outline" size={18} color="#fff" style={{ marginRight: 6 }} />
-          <Text style={styles.detailButtonText}>Mehr anzeigen</Text>
-        </TouchableOpacity>
-      )}
-
       <Text style={[styles.detailTitle, { color: colors.text }]}>
-        Deine Bewertung für {angezeigterName}
+        Deine Bewertung
       </Text>
 
       {hatBereitsBewertet ? (
@@ -154,20 +151,6 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '700',
     marginBottom: 4,
-  },
-  detailButton: {
-    alignSelf: 'flex-start',
-    borderRadius: 8,
-    marginBottom: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  detailButtonText: {
-    color: '#fff',
-    fontSize: 15,
-    fontWeight: '600',
   },
   infoBox: {
     flexDirection: 'row',

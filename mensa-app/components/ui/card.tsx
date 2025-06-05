@@ -12,13 +12,18 @@ import { Colors } from '../../constants/Colors';
 import { Audio } from 'expo-av';
 import * as Haptics from 'expo-haptics';
 
+type Bewertung = {
+  stars: number;
+  gericht_name: string;
+};
+
 type CardProps = {
   name: string;
   anzeigename: string;
   beschreibung: string;
   bild_url: string;
   kategorie: string;
-  bewertung: number;
+  bewertungen: Bewertung[]; // ⬅️ NEU
   tags?: string[];
   preis: number;
   isFavorite: boolean;
@@ -33,7 +38,7 @@ const Card: React.FC<CardProps> = ({
   beschreibung,
   bild_url,
   kategorie,
-  bewertung,
+  bewertungen,
   tags = [],
   preis,
   isFavorite,
@@ -80,11 +85,18 @@ const Card: React.FC<CardProps> = ({
     onAlertPress();
   };
 
+  const filtered = bewertungen.filter(b => b.gericht_name === name);
+  const avg =
+    filtered.length > 0
+      ? filtered.reduce((sum, b) => sum + b.stars, 0) / filtered.length
+      : 0;
+
   const renderStars = () => {
+    const rounded = Math.round(avg);
     return Array.from({ length: 5 }, (_, i) => (
       <Ionicons
         key={i}
-        name={i < bewertung ? 'star' : 'star-outline'}
+        name={i < rounded ? 'star' : 'star-outline'}
         size={16}
         color="#FFD700"
         style={{ marginRight: 2 }}
