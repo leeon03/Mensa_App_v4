@@ -1,15 +1,16 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Text, useColorScheme, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 // @ts-ignore
 import Onboarding from 'react-native-onboarding-swiper/src/index';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import { Colors } from '../constants/Colors';
+import { supabase } from '../constants/supabase';
 
 export default function OnboardingScreen() {
   const theme = useColorScheme() || 'light';
   const router = useRouter();
+  const [shouldShowOnboarding, setShouldShowOnboarding] = useState<boolean | null>(null);
 
   const backgroundColor = Colors[theme].background;
   const textColor = Colors[theme].text;
@@ -18,10 +19,56 @@ export default function OnboardingScreen() {
     ? require('../assets/AppLogoDarkmode.png')
     : require('../assets/AppLogo.png');
 
+  useEffect(() => {
+    const checkOnboardingStatus = async () => {
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (!user || authError) {
+        console.warn('Kein eingeloggter Benutzer oder Fehler:', authError);
+        setShouldShowOnboarding(true);
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from('intro_flags')
+        .select('onboarding_seen')
+        .eq('user_id', user.id)
+        .single();
+
+      if (error && error.code !== 'PGRST116') {
+        console.error('Fehler beim Laden von onboarding_seen:', error);
+        setShouldShowOnboarding(true);
+      } else {
+        setShouldShowOnboarding(!data?.onboarding_seen);
+      }
+    };
+
+    checkOnboardingStatus();
+  }, []);
+
   const handleDone = async () => {
-    await AsyncStorage.setItem('onboardingSeen', 'true');
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (!user || authError) {
+      console.warn('Fehler beim Abrufen des Benutzers:', authError);
+      return;
+    }
+
+    const { error } = await supabase
+      .from('intro_flags')
+      .upsert({ user_id: user.id, onboarding_seen: true });
+
+    if (error) {
+      console.error('Fehler beim Speichern von onboarding_seen:', error);
+    }
+
     router.replace('/startseite');
   };
+
+  if (shouldShowOnboarding === false) {
+    router.replace('/startseite');
+    return null;
+  }
+
+  if (shouldShowOnboarding === null) return null;
 
   return (
     <Onboarding

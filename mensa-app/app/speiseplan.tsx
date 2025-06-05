@@ -1,27 +1,22 @@
 import React, { useEffect, useState } from 'react';
 import {
   View, Text, StyleSheet, Dimensions, TouchableOpacity,
-  Platform, Modal, LayoutAnimation, UIManager, ActivityIndicator, Alert,
-  Image, FlatList, ScrollView
+  Platform, ActivityIndicator, Alert, FlatList, UIManager
 } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Colors } from '../constants/Colors';
 import { useColorScheme } from 'react-native';
-import RatingStars from '../components/RatingStars';
 import { Ionicons } from '@expo/vector-icons';
 import { addDays, startOfWeek, format, isSameDay } from 'date-fns';
 import * as Haptics from 'expo-haptics';
-import { Audio } from 'expo-av';
 import * as Animatable from 'react-native-animatable';
+import { supabase } from '../constants/supabase';
+import { generateMetaData } from '../hooks/dataSync';
+import Card from '../components/ui/card';
 
 const screenWidth = Dimensions.get('window').width;
 
-if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
-  UIManager.setLayoutAnimationEnabledExperimental(true);
-}
-
-// Define TypeScript interfaces for dish data
 interface Dish {
   id: number;
   name: string;
@@ -29,12 +24,12 @@ interface Dish {
   beschreibung: string;
   kategorie?: string;
   tags: string[];
-  bewertung: number;
   preis: string;
   bild_url: string;
+  datum: string;
+  zutaten: string | string[];
 }
 
-// Color mapping for tags
 const tagColors: { [key: string]: string } = {
   'vegan': '#4CAF50',
   'vegetarisch': '#8BC34A',
@@ -47,7 +42,6 @@ const tagColors: { [key: string]: string } = {
   'beliebt': '#FF4081'
 };
 
-// Utility to determine text color based on background
 const isColorDark = (hexColor: string): boolean => {
   const hex = hexColor.replace('#', '');
   const r = parseInt(hex.substring(0, 2), 16);
@@ -73,84 +67,75 @@ function InnerSpeiseplanScreen() {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [favorites, setFavorites] = useState<Record<number, boolean>>({});
   const [alerts, setAlerts] = useState<Record<number, boolean>>({});
-  const [showLegend, setShowLegend] = useState(false);
-  const [sound, setSound] = useState<Audio.Sound | null>(null);
+
+  useEffect(() => {
+    if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+      UIManager.setLayoutAnimationEnabledExperimental(true);
+    }
+  }, []);
 
   const startOfCurrentWeek = startOfWeek(selectedDate, { weekStartsOn: 1 });
   const daysOfWeek = Array.from({ length: 5 }, (_, i) => addDays(startOfCurrentWeek, i));
   const weekLabel = `${format(daysOfWeek[0], 'dd.MM.yyyy')} - ${format(daysOfWeek[4], 'dd.MM.yyyy')}`;
 
-  useEffect(() => {
-    const dummyGerichte: Dish[] = [
-      { 
-        id: 1, 
-        name: 'Käsespätzle', 
-        anzeigename: 'Käsespätzle mit Röstzwiebeln',
-        beschreibung: 'Mit Röstzwiebeln und Salat', 
-        bewertung: 4, 
-        tags: ['vegetarisch', 'beliebt'], 
-        preis: '8,90 €',
-        bild_url: 'https://images.pexels.com/photos/12737656/pexels-photo-12737656.jpeg'
-      },
-      { 
-        id: 2, 
-        name: 'Currywurst', 
-        anzeigename: 'Currywurst Spezial',
-        beschreibung: 'Mit Pommes Frites und hausgemachter Currysoße', 
-        bewertung: 3, 
-        tags: ['scharf', 'klassiker'], 
-        preis: '7,50 €',
-        bild_url: 'https://images.pexels.com/photos/1603901/pexels-photo-1603901.jpeg'
-      },
-      { 
-        id: 3, 
-        name: 'Vegane Gemüsepfanne', 
-        anzeigename: 'Vegane Gemüsepfanne',
-        beschreibung: 'Mit Reis und Sojasauce', 
-        bewertung: 5, 
-        tags: ['vegan', 'leicht'], 
-        preis: '9,20 €',
-        bild_url: 'https://images.pexels.com/photos/1099680/pexels-photo-1099680.jpeg'
-      },
-    ];
-    
-    // Initialize favorite and alert states
-    const initialFavState: Record<number, boolean> = {};
-    const initialAlertState: Record<number, boolean> = {};
-    dummyGerichte.forEach(d => {
-      initialFavState[d.id] = false;
-      initialAlertState[d.id] = false;
-    });
-    setFavorites(initialFavState);
-    setAlerts(initialAlertState);
-    
-    setLoading(true);
-    setTimeout(() => {
-      setGerichte(dummyGerichte);
-      setLoading(false);
-    }, 500);
-  }, [selectedDate]);
+  const fetchDishes = async (date: Date) => {
+    try {
+      setLoading(true);
+      const dateString = format(date, 'yyyy-MM-dd');
+      const { data, error } = await supabase
+        .from('gerichte')
+        .select('*')
+        .eq('datum', dateString);
 
-  // Load sound effect
+      if (error) {
+        console.error('Error fetching dishes:', error);
+        Alert.alert('Fehler', 'Gerichte konnten nicht geladen werden');
+        return [];
+      }
+
+      const enhancedData = data?.map(dish => {
+        if (!dish.anzeigename || !dish.beschreibung || !dish.bild_url) {
+          const meta = generateMetaData({
+            name: dish.name,
+            zutaten: dish.zutaten
+          });
+          return { ...dish, ...meta };
+        }
+        return dish;
+      }) || [];
+
+      return enhancedData;
+    } catch (error) {
+      console.error('Unexpected error:', error);
+      Alert.alert('Fehler', 'Ein unerwarteter Fehler ist aufgetreten');
+      return [];
+    }
+  };
+
   useEffect(() => {
-    let soundObj: Audio.Sound;
-    const loadSound = async () => {
-      try {
-        const { sound } = await Audio.Sound.createAsync(require('../assets/sounds/click.mp3'));
-        soundObj = sound;
-        setSound(soundObj);
-      } catch (error) {
-        console.warn('Sound loading error', error);
-      }
+    const loadDishes = async () => {
+      const dishes = await fetchDishes(selectedDate);
+      setGerichte(dishes);
+
+      const newFavorites = { ...favorites };
+      const newAlerts = { ...alerts };
+
+      dishes.forEach(dish => {
+        if (newFavorites[dish.id] === undefined) {
+          newFavorites[dish.id] = false;
+        }
+        if (newAlerts[dish.id] === undefined) {
+          newAlerts[dish.id] = false;
+        }
+      });
+
+      setFavorites(newFavorites);
+      setAlerts(newAlerts);
+      setLoading(false);
     };
-    loadSound();
-    
-    return () => {
-      if (soundObj) {
-        soundObj.unloadAsync();
-      }
-    };
-  }, []);
+
+    loadDishes();
+  }, [selectedDate]);
 
   const handleDateChange = (event: any, date?: Date) => {
     if (event?.type === 'dismissed') {
@@ -162,59 +147,19 @@ function InnerSpeiseplanScreen() {
   };
 
   const openDatePicker = () => setShowDatePicker(true);
+
   const changeWeek = (direction: 'prev' | 'next') => {
     const newDate = addDays(selectedDate, direction === 'next' ? 7 : -7);
     setSelectedDate(newDate);
     Haptics.selectionAsync().catch(() => {});
   };
 
-  const triggerHaptic = () => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-
-  const handleToggleFavorite = async (id: number) => {
+  const handleToggleFavorite = (id: number) => {
     setFavorites(prev => ({ ...prev, [id]: !prev[id] }));
-    triggerHaptic();
-    if (sound) {
-      try {
-        await sound.replayAsync();
-      } catch (error) {
-        console.warn('Sound play error', error);
-      }
-    }
   };
 
-  const handleToggleAlert = async (id: number) => {
+  const handleToggleAlert = (id: number) => {
     setAlerts(prev => ({ ...prev, [id]: !prev[id] }));
-    triggerHaptic();
-    if (sound) {
-      try {
-        await sound.replayAsync();
-      } catch (error) {
-        console.warn('Sound play error', error);
-      }
-    }
-  };
-
-  const renderStars = (rating: number) => {
-    const stars = [];
-    const fullStars = Math.floor(rating);
-    const halfStar = rating - fullStars >= 0.5;
-    
-    for (let i = 1; i <= 5; i++) {
-      let iconName: any;
-      if (i <= fullStars) {
-        iconName = 'star';
-      } else if (i === fullStars + 1 && halfStar) {
-        iconName = 'star-half';
-      } else {
-        iconName = 'star-outline';
-      }
-      
-      const iconColor = iconName === 'star-outline' ? Colors[theme].text : '#FFD700';
-      stars.push(
-        <Ionicons key={i} name={iconName} size={16} color={iconColor} />
-      );
-    }
-    return stars;
   };
 
   return (
@@ -268,113 +213,38 @@ function InnerSpeiseplanScreen() {
 
       {loading ? (
         <ActivityIndicator size="large" color={Colors[theme].accent1} />
+      ) : gerichte.length === 0 ? (
+        <View style={styles.emptyContainer}>
+          <Ionicons name="fast-food-outline" size={60} color={Colors[theme].text} />
+          <Text style={[styles.emptyText, { color: Colors[theme].text }]}>
+            Keine Gerichte für diesen Tag gefunden
+          </Text>
+        </View>
       ) : (
         <FlatList
           data={gerichte}
           keyExtractor={(item) => item.id.toString()}
           renderItem={({ item, index }) => (
-            <Animatable.View 
-              animation="fadeInUp" 
-              duration={600} 
+            <Animatable.View
+              animation="fadeInUp"
+              duration={600}
               delay={index * 100}
               style={styles.cardContainer}
             >
-              <View style={[
-                styles.card, 
-                { 
-                  backgroundColor: Colors[theme].card,
-                  shadowColor: Colors[theme].text,
-                }
-              ]}>
-                {/* Dish Image */}
-                <Image 
-                  source={{ uri: item.bild_url }} 
-                  style={styles.cardImage} 
-                  resizeMode="cover"
-                />
-                
-                {/* Favorite & Alert Icons */}
-                <View style={styles.iconContainer}>
-                  <TouchableOpacity 
-                    onPress={() => handleToggleFavorite(item.id)} 
-                    style={styles.iconButton}
-                  >
-                    <Ionicons 
-                      name={favorites[item.id] ? 'heart' : 'heart-outline'} 
-                      size={24} 
-                      color={favorites[item.id] ? 'red' : '#FFF'} 
-                    />
-                  </TouchableOpacity>
-                  
-                  <TouchableOpacity 
-                    onPress={() => handleToggleAlert(item.id)} 
-                    style={[styles.iconButton, { marginLeft: 10 }]}
-                  >
-                    <Ionicons 
-                      name={alerts[item.id] ? 'notifications' : 'notifications-outline'} 
-                      size={24} 
-                      color={alerts[item.id] ? '#FFD700' : '#FFF'} 
-                    />
-                  </TouchableOpacity>
-                </View>
-                
-                {/* Card Content */}
-                <View style={styles.cardContent}>
-                {/* Category */}
-                {item.kategorie && (
-                  <Text style={[styles.categoryText, { color: Colors[theme].text }]}>
-                    {item.kategorie}
-                  </Text>
-                )}
-                  
-                  {/* Title */}
-                  <Text style={[styles.titleText, { color: Colors[theme].text }]}>
-                    {item.anzeigename}
-                  </Text>
-                  
-                  {/* Description */}
-                  <Text style={[styles.descriptionText, { color: Colors[theme].text }]}>
-                    {item.beschreibung}
-                  </Text>
-                  
-                  {/* Tags */}
-                  {item.tags && item.tags.length > 0 && (
-                    <View style={styles.tagContainer}>
-                      {item.tags.map((tag) => {
-                        const bgColor = tagColors[tag] || '#888';
-                        const textColor = isColorDark(bgColor) ? '#FFF' : '#000';
-                        return (
-                          <Text 
-                            key={tag} 
-                            style={[
-                              styles.tag, 
-                              { 
-                                backgroundColor: bgColor, 
-                                color: textColor 
-                              }
-                            ]}
-                          >
-                            {tag}
-                          </Text>
-                        );
-                      })}
-                    </View>
-                  )}
-                  
-                  {/* Rating and Price */}
-                  <View style={styles.footerRow}>
-                    {/* Rating Stars */}
-                    <View style={styles.starContainer}>
-                      {renderStars(item.bewertung)}
-                    </View>
-                    
-                    {/* Price */}
-                    <Text style={[styles.priceText, { color: Colors[theme].text }]}>
-                      {item.preis}
-                    </Text>
-                  </View>
-                </View>
-              </View>
+              <Card
+                name={item.name}
+                anzeigename={item.anzeigename}
+                beschreibung={item.beschreibung}
+                bild_url={item.bild_url}
+                kategorie={item.kategorie || ''}
+                bewertung={0}
+                tags={item.tags}
+                preis={parseFloat(item.preis)}
+                isFavorite={favorites[item.id]}
+                isAlert={alerts[item.id]}
+                onFavoritePress={() => handleToggleFavorite(item.id)}
+                onAlertPress={() => handleToggleAlert(item.id)}
+              />
             </Animatable.View>
           )}
         />
@@ -422,75 +292,15 @@ const styles = StyleSheet.create({
   cardContainer: {
     marginBottom: 16,
   },
-  card: {
-    borderRadius: 12,
-    overflow: 'hidden',
-    shadowOpacity: 0.1,
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  cardImage: {
-    width: '100%',
-    height: 180,
-  },
-  iconContainer: {
-    position: 'absolute',
-    top: 10,
-    right: 10,
-    flexDirection: 'row',
-  },
-  iconButton: {
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    padding: 6,
-    borderRadius: 20,
-    alignItems: 'center',
+  emptyContainer: {
+    flex: 1,
     justifyContent: 'center',
-  },
-  cardContent: {
-    padding: 16,
-  },
-  categoryText: {
-    fontSize: 12,
-    fontWeight: '600',
-    marginBottom: 4,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  titleText: {
-    fontSize: 18,
-    fontWeight: '700',
-    marginBottom: 8,
-  },
-  descriptionText: {
-    fontSize: 14,
-    marginBottom: 12,
-    lineHeight: 20,
-  },
-  tagContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginBottom: 12,
-  },
-  tag: {
-    fontSize: 12,
-    paddingVertical: 4,
-    paddingHorizontal: 8,
-    borderRadius: 10,
-    overflow: 'hidden',
-    marginRight: 6,
-    marginBottom: 6,
-  },
-  footerRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    padding: 20,
   },
-  starContainer: {
-    flexDirection: 'row',
-  },
-  priceText: {
-    fontSize: 16,
-    fontWeight: '700',
+  emptyText: {
+    fontSize: 18,
+    textAlign: 'center',
+    marginTop: 20,
   },
 });

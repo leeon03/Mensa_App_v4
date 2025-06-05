@@ -13,8 +13,8 @@ import {
 import { useColorScheme } from 'react-native';
 import { Colors } from '../constants/Colors';
 import * as Haptics from 'expo-haptics';
-import { useRouter } from 'expo-router'; // ✅ router für Navigation
-import { supabase } from '../constants/supabase'; // ✅ Supabase importieren
+import { useRouter } from 'expo-router';
+import { supabase } from '../constants/supabase';
 
 export default function RegisterScreen() {
   const theme = useColorScheme() || 'light';
@@ -50,13 +50,26 @@ export default function RegisterScreen() {
       },
     });
 
-    if (error) {
-      Alert.alert('Registrierung fehlgeschlagen', error.message);
+    if (error || !data.user) {
+      Alert.alert('Registrierung fehlgeschlagen', error?.message || 'Unbekannter Fehler');
       return;
     }
 
+    // 👉 Neuen Benutzer in eigene users-Tabelle eintragen
+    const { user } = data;
+    const { error: insertError } = await supabase.from('users').insert({
+      id: user.id,
+      first_name: firstName,
+      last_name: lastName,
+      email: user.email,
+    });
+
+    if (insertError) {
+      console.error('Fehler beim Einfügen in users-Tabelle:', insertError);
+    }
+
     Alert.alert('Erfolg', 'Bitte bestätige deine E-Mail-Adresse.');
-    router.replace('/userLogin'); // Nach der Registrierung zum Login
+    router.replace('/userLogin');
   };
 
   return (

@@ -15,8 +15,8 @@ import { useColorScheme } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import LottieView from 'lottie-react-native';
 import { BlurView } from 'expo-blur';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
+import { supabase } from '../constants/supabase'; // Pfad ggf. anpassen
 
 const screenWidth = Dimensions.get('window').width;
 
@@ -46,14 +46,27 @@ function SwipeScreen() {
   const [introStep, setIntroStep] = useState(1);
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
+  const position = useRef(new Animated.ValueXY()).current;
+  const [likeScale] = useState(new Animated.Value(1));
+  const [dislikeScale] = useState(new Animated.Value(1));
+
   useEffect(() => {
-    const checkIntro = async () => {
-      const seenIntro = await AsyncStorage.getItem('seenIntro');
-      if (seenIntro === 'true') {
+    const fetchIntroSeen = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data, error } = await supabase
+        .from('intro_flags')
+        .select('seen_intro')
+        .eq('user_id', user.id)
+        .single();
+
+      if (!error && data?.seen_intro) {
         setIntroVisible(false);
       }
     };
-    checkIntro();
+
+    fetchIntroSeen();
   }, []);
 
   useEffect(() => {
@@ -64,10 +77,6 @@ function SwipeScreen() {
       useNativeDriver: true,
     }).start();
   }, [introStep]);
-
-  const position = useRef(new Animated.ValueXY()).current;
-  const [likeScale] = useState(new Animated.Value(1));
-  const [dislikeScale] = useState(new Animated.Value(1));
 
   const rotate = position.x.interpolate({
     inputRange: [-200, 0, 200],
@@ -147,35 +156,55 @@ function SwipeScreen() {
     );
   }
 
+  const handleIntroDismiss = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    await supabase
+    .from('intro_flags')
+    .upsert({ user_id: user.id, seen_intro: true });
+    setIntroVisible(false);
+  };
+
   return (
     <View style={[styles.container, { backgroundColor: Colors[theme].background }]}>
+      {/* Intro Popup */}
+      <Modal visible={introVisible} transparent animationType="fade">
+        <View style={styles.matchContainer}>
+          <BlurView intensity={40} tint="dark" style={styles.matchCard}>
+            <Text style={[styles.matchTitle, { color: 'white' }]}>👋 Na, heiß auf was Leckeres?</Text>
+            <Animated.View style={{ opacity: fadeAnim, marginTop: 20 }}>
+              {introStep === 1 && <Text style={[styles.description, { color: 'white' }]}>1️⃣ Swipe nach rechts, um ein Gericht zu liken.</Text>}
+              {introStep === 2 && <Text style={[styles.description, { color: 'white' }]}>2️⃣ Swipe nach links, um ein Gericht zu überspringen.</Text>}
+              {introStep === 3 && <Text style={[styles.description, { color: 'white' }]}>3️⃣ Deine Favoriten findest du später gesammelt.</Text>}
+            </Animated.View>
+            <View style={styles.introControls}>
+              {introStep < 3 ? (
+                <TouchableOpacity onPress={() => setIntroStep((prev) => prev + 1)} style={styles.arrowButton}>
+                  <Ionicons name="chevron-forward" size={28} color="#2ecc71" />
+                </TouchableOpacity>
+              ) : (
+                <TouchableOpacity onPress={handleIntroDismiss} style={styles.startButton}>
+                  <Text style={styles.startButtonText}>Los geht’s!</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+            <TouchableOpacity onPress={handleIntroDismiss} style={{ marginTop: 20 }}>
+              <Text style={{ color: 'white', fontSize: 14, textDecorationLine: 'underline' }}>
+                Nicht mehr anzeigen
+              </Text>
+            </TouchableOpacity>
+          </BlurView>
+        </View>
+      </Modal>
+
+      {/* Swipe UI */}
       <Text style={[styles.header, { color: Colors[theme].accent3 }]}>Essens Tinder</Text>
 
       <Animated.View
         {...panResponder.panHandlers}
         style={[styles.card, swipeCardStyle, { backgroundColor: Colors[theme].card }]}
       >
-        {/* Overlay Labels */}
-        <Animated.View style={[styles.overlayLabel, {
-          left: 20,
-          transform: [{ rotate: '-12deg' }],
-          opacity: position.x.interpolate({ inputRange: [0, 120], outputRange: [0, 1], extrapolate: 'clamp' }),
-          backgroundColor: 'rgba(46, 204, 113, 0.15)',
-          borderColor: '#2ecc71',
-        }]}>
-          <Text style={[styles.overlayText, { color: '#2ecc71' }]}>LIKE</Text>
-        </Animated.View>
-
-        <Animated.View style={[styles.overlayLabel, {
-          right: 20,
-          transform: [{ rotate: '12deg' }],
-          opacity: position.x.interpolate({ inputRange: [-120, 0], outputRange: [1, 0], extrapolate: 'clamp' }),
-          backgroundColor: 'rgba(231, 76, 60, 0.15)',
-          borderColor: '#e74c3c',
-        }]}>
-          <Text style={[styles.overlayText, { color: '#e74c3c' }]}>NOPE</Text>
-        </Animated.View>
-
         <Text style={[styles.title, { color: Colors[theme].text }]}>{currentGericht.name}</Text>
         <Text style={[styles.description, { color: Colors[theme].text }]}>{currentGericht.beschreibung}</Text>
 
@@ -216,7 +245,7 @@ function SwipeScreen() {
               source={require('../assets/animations/match.json')}
               autoPlay
               loop
-              style={styles.lottie}
+              style={{ width: 200, height: 200, marginTop: 20 }}
             />
             <View style={styles.matchImageTall}>
               <Text style={{ color: '#444', fontSize: 18 }}>Bild folgt</Text>
@@ -225,54 +254,11 @@ function SwipeScreen() {
           </BlurView>
         </TouchableOpacity>
       </Modal>
-
-      {/* Intro Popup */}
-      <Modal visible={introVisible} transparent animationType="fade">
-        <View style={styles.matchContainer}>
-          <BlurView intensity={40} tint="dark" style={styles.matchCard}>
-            <Text style={[styles.matchTitle, { color: 'white' }]}>👋 Na, heiß auf was Leckeres?</Text>
-            <Animated.View style={{ opacity: fadeAnim, marginTop: 20 }}>
-              {introStep === 1 && <Text style={[styles.description, { color: 'white' }]}>1️⃣ Swipe nach rechts, um ein Gericht zu liken.</Text>}
-              {introStep === 2 && <Text style={[styles.description, { color: 'white' }]}>2️⃣ Swipe nach links, um ein Gericht zu überspringen.</Text>}
-              {introStep === 3 && <Text style={[styles.description, { color: 'white' }]}>3️⃣ Deine Favoriten findest du später gesammelt.</Text>}
-            </Animated.View>
-            <View style={styles.introControls}>
-              {introStep < 3 ? (
-                <TouchableOpacity onPress={() => setIntroStep((prev) => prev + 1)} style={styles.arrowButton}>
-                  <Ionicons name="chevron-forward" size={28} color="#2ecc71" />
-                </TouchableOpacity>
-              ) : (
-                <TouchableOpacity
-                  onPress={async () => {
-                    await AsyncStorage.setItem('seenIntro', 'true');
-                    setIntroVisible(false);
-                  }}
-                  style={styles.startButton}
-                >
-                  <Text style={styles.startButtonText}>Los geht’s!</Text>
-                </TouchableOpacity>
-              )}
-            </View>
-            <TouchableOpacity
-              onPress={async () => {
-                await AsyncStorage.setItem('seenIntro', 'true');
-                setIntroVisible(false);
-              }}
-              style={{ marginTop: 20 }}
-            >
-              <Text style={{ color: 'white', fontSize: 14, textDecorationLine: 'underline' }}>Nicht mehr anzeigen</Text>
-            </TouchableOpacity>
-          </BlurView>
-        </View>
-      </Modal>
     </View>
   );
 }
 
 // StyleSheet bleibt unverändert wie in deiner ursprünglichen Datei
-
-
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,

@@ -7,16 +7,12 @@ import {
   Image,
   Platform,
   Animated,
-  Modal,
-  Pressable,
-  Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useColorScheme } from 'react-native';
 import { Colors } from '../constants/Colors';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../constants/supabase';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 
@@ -31,7 +27,7 @@ export default function HomeScreen() {
 function InnerHomeScreen() {
   const theme = useColorScheme() || 'light';
   const router = useRouter();
-  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   const logoSource =
     theme === 'dark'
@@ -41,35 +37,40 @@ function InnerHomeScreen() {
   const iconColor = Colors[theme].text;
 
   useEffect(() => {
-    const checkSession = async () => {
-      const {
-        data: { session },
-        error,
-      } = await supabase.auth.getSession();
+    const checkOnboardingStatus = async () => {
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
 
-      if (!session || error) {
+      if (!user || authError) {
         router.replace('/userLogin');
         return;
       }
 
-      const seen = await AsyncStorage.getItem('onboardingSeen');
-      if (!seen) {
+      const { data, error } = await supabase
+        .from('intro_flags')
+        .select('onboarding_seen')
+        .eq('user_id', user.id)
+        .single();
+
+      if (error && error.code !== 'PGRST116') {
+        console.error('Fehler beim Laden von onboarding_seen:', error);
+        return;
+      }
+
+      const hasSeenOnboarding = data?.onboarding_seen ?? false;
+
+      if (!hasSeenOnboarding) {
         router.replace('/onboardingscreen');
+      } else {
+        setLoading(false);
       }
     };
 
-    checkSession();
+    checkOnboardingStatus();
   }, []);
 
-  const handleSkipOnboarding = async () => {
-    await AsyncStorage.setItem('onboardingSeen', 'true');
-    setShowOnboarding(false);
-  };
-
-  const handleResetOnboarding = async () => {
-    await AsyncStorage.removeItem('onboardingSeen');
-    Alert.alert('Zurückgesetzt', 'Das Onboarding wird beim nächsten Start wieder angezeigt.');
-  };
+  if (loading) {
+    return null;
+  }
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: Colors[theme].background }]}>
@@ -114,26 +115,6 @@ function InnerHomeScreen() {
           onPress={() => router.push('/tinder')}
         />
       </View>
-
-      {__DEV__ && (
-        <TouchableOpacity onPress={handleResetOnboarding} style={styles.resetButton}>
-          <Text style={styles.resetButtonText}>🔁 Onboarding zurücksetzen</Text>
-        </TouchableOpacity>
-      )}
-
-      <Modal visible={showOnboarding} animationType="slide" transparent>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Willkommen bei RateMyMensa!</Text>
-            <Text style={styles.modalText}>
-              Hier kannst du den Speiseplan checken, Essen bewerten und Favoriten speichern.
-            </Text>
-            <Pressable style={styles.modalButton} onPress={handleSkipOnboarding}>
-              <Text style={styles.modalButtonText}>Nicht mehr anzeigen</Text>
-            </Pressable>
-          </View>
-        </View>
-      </Modal>
     </SafeAreaView>
   );
 }
@@ -275,48 +256,5 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: '600',
     fontSize: 16,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  modalContent: {
-    backgroundColor: '#fff',
-    padding: 24,
-    borderRadius: 16,
-    width: '80%',
-    alignItems: 'center',
-  },
-  modalTitle: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    marginBottom: 12,
-  },
-  modalText: {
-    fontSize: 16,
-    textAlign: 'center',
-    marginBottom: 24,
-  },
-  modalButton: {
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    backgroundColor: '#333',
-    borderRadius: 10,
-  },
-  modalButtonText: {
-    color: '#fff',
-    fontWeight: '600',
-  },
-  resetButton: {
-    marginTop: 24,
-    padding: 10,
-    backgroundColor: '#ddd',
-    borderRadius: 8,
-  },
-  resetButtonText: {
-    color: '#000',
-    fontWeight: 'bold',
   },
 });

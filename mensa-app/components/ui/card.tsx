@@ -1,6 +1,16 @@
 import React from 'react';
-import { View, Text, Image, StyleSheet, Pressable } from 'react-native';
+import {
+  View,
+  Text,
+  Image,
+  StyleSheet,
+  Pressable,
+  useColorScheme,
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { Colors } from '../../constants/Colors';
+import { Audio } from 'expo-av';
+import * as Haptics from 'expo-haptics';
 
 type CardProps = {
   name: string;
@@ -31,12 +41,43 @@ const Card: React.FC<CardProps> = ({
   onFavoritePress,
   onAlertPress,
 }) => {
-  // Farbzuordnung für bekannte Tags
+  const theme = useColorScheme() || 'light';
+  const themeColor = Colors[theme];
+
   const tagColors: Record<string, string> = {
-    vegan: '#4caf50',
-    vegetarisch: '#8bc34a',
-    beliebt: '#ff9800',
-    neu: '#2196f3',
+    vegetarisch: '#8BC34A',
+    vegan: '#4CAF50',
+    fleischhaltig: '#B71C1C',
+    scharf: '#F44336',
+    fischhaltig: '#03A9F4',
+    glutenfrei: '#FF9800',
+    leicht: '#AED581',
+    beliebt: '#FF4081',
+  };
+
+  const triggerHaptic = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+  };
+
+  const playSound = async (file: any) => {
+    const { sound } = await Audio.Sound.createAsync(file);
+    await sound.playAsync();
+  };
+
+  const handleFavoritePress = async () => {
+    if (!isFavorite) {
+      triggerHaptic();
+      await playSound(require('../../assets/sounds/heart.wav'));
+    }
+    onFavoritePress();
+  };
+
+  const handleAlertPress = async () => {
+    if (!isAlert) {
+      triggerHaptic();
+      await playSound(require('../../assets/sounds/glocke.wav'));
+    }
+    onAlertPress();
   };
 
   const renderStars = () => {
@@ -51,19 +92,26 @@ const Card: React.FC<CardProps> = ({
     ));
   };
 
+  const formatEuro = (value: number) => {
+    return new Intl.NumberFormat('de-DE', {
+      style: 'currency',
+      currency: 'EUR',
+    }).format(value);
+  };
+
   return (
-    <View style={styles.card}>
+    <View style={[styles.card, { backgroundColor: themeColor.card, shadowColor: themeColor.text }]}>
       <View style={styles.imageContainer}>
         <Image source={{ uri: bild_url }} style={styles.image} />
         <View style={styles.iconContainer}>
-          <Pressable onPress={onFavoritePress} style={styles.iconButton}>
+          <Pressable onPress={handleFavoritePress} style={styles.iconButton}>
             <Ionicons
               name={isFavorite ? 'heart' : 'heart-outline'}
               size={24}
               color={isFavorite ? '#e74c3c' : '#FFF'}
             />
           </Pressable>
-          <Pressable onPress={onAlertPress} style={[styles.iconButton, { marginLeft: 8 }]}>
+          <Pressable onPress={handleAlertPress} style={[styles.iconButton, { marginLeft: 8 }]}>
             <Ionicons
               name={isAlert ? 'notifications' : 'notifications-outline'}
               size={24}
@@ -75,10 +123,12 @@ const Card: React.FC<CardProps> = ({
 
       <View style={styles.content}>
         {kategorie ? (
-          <Text style={styles.category}>{kategorie.toUpperCase()}</Text>
+          <Text style={[styles.category, { color: themeColor.icon }]}>
+            {kategorie.toUpperCase()}
+          </Text>
         ) : null}
-        <Text style={styles.title}>{anzeigename}</Text>
-        <Text style={styles.description}>{beschreibung}</Text>
+        <Text style={[styles.title, { color: themeColor.text }]}>{anzeigename}</Text>
+        <Text style={[styles.description, { color: themeColor.text }]}>{beschreibung}</Text>
 
         {tags.length > 0 && (
           <View style={styles.tagsContainer}>
@@ -95,7 +145,9 @@ const Card: React.FC<CardProps> = ({
 
         <View style={styles.bottomRow}>
           <View style={styles.ratingContainer}>{renderStars()}</View>
-          <Text style={styles.price}>{preis.toFixed(2).replace('.', ',')} €</Text>
+          <Text style={[styles.price, { color: themeColor.text }]}>
+            {formatEuro(preis)}
+          </Text>
         </View>
       </View>
     </View>
@@ -104,11 +156,9 @@ const Card: React.FC<CardProps> = ({
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: '#FFF',
     borderRadius: 10,
     marginVertical: 10,
     marginHorizontal: 8,
-    shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
@@ -140,18 +190,15 @@ const styles = StyleSheet.create({
   category: {
     fontSize: 12,
     fontWeight: 'bold',
-    color: '#888',
     marginBottom: 4,
   },
   title: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#000',
     marginBottom: 4,
   },
   description: {
     fontSize: 14,
-    color: '#444',
     marginBottom: 8,
   },
   tagsContainer: {
@@ -179,7 +226,6 @@ const styles = StyleSheet.create({
   price: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#000',
   },
 });
 

@@ -17,127 +17,158 @@ type GerichtMeta = {
 };
 
 const ALLOWED_TAGS = [
-  "vegan", "vegetarisch", "scharf", "glutenfrei", "laktosefrei",
-  "fleischhaltig", "fisch", "leicht", "deftig", "beliebt"
+  "vegetarisch",
+  "vegan",
+  "fleischhaltig",
+  "scharf",
+  "fischhaltig",
+  "glutenfrei",
+  "leicht",
 ];
 
-const EXCLUDED_INGREDIENTS = [
-  "farbstoff", "konservierungsstoff", "antioxidationsmittel", "geschmacksverstärker",
-  "süßungsmittel", "kakaohaltige fettglasur", "koffeinhaltig", "geschwärzt",
-  "geschwefelt", "gewascht", "phosphat", "säuerungsmittel", "natriumnitrit",
-  "phenylalaninquelle", "portion preis", "glas preis", "=",
+const delay = (ms: number) => new Promise((res) => setTimeout(res, ms));
 
-  "gluten", "dinkel", "hafer", "roggen", "weizen", "gerste",
-  "milch", "laktose", "ei", "erdnüsse", "haselnüsse", "cashewnüsse",
-  "mandeln", "walnüsse", "pistazien", "sesam", "senf", "sellerie", "soja", "lupinen",
-  "rind", "schwein", "lamm", "wild", "fisch", "geflügel", "krebse", "meeresfrüchte", "weichtiere",
-  "bio", "hausgemacht", "vegetarisch", "vegan", "veg", "vga", "sc", "gi", "gid", "gih", "gir", "glw",
-  "kr", "lu", "mi", "scm", "scp", "scw", "se", "sf", "si", "so", "sw", "wt", "w", "fi", "h", "scc", "sch", "en"
-];
+async function fetchPexelsImage(searchText: string): Promise<string | null> {
+  const apiKey = 'kpS8vGJ046GbXg7DcGMbMu8FKzSiyKh4O2DQMWFgVXiIGBcjuWkqRNH9';
+  const url = `https://api.pexels.com/v1/search?query=${encodeURIComponent(searchText)}&per_page=5`;
 
-// Filtert irrelevante Zutaten
-function cleanZutaten(raw: string): string[] {
-  return raw
-    .split(',')
-    .map(z => z.trim())
-    .filter(z => {
-      const l = z.toLowerCase();
-      return l && !EXCLUDED_INGREDIENTS.some(ex => l.includes(ex));
+  try {
+    const response = await fetch(url, {
+      headers: {
+        Authorization: apiKey,
+      },
     });
-}
 
-// Generiert Titel aus gefilterten Zutaten oder Namen
-function generateAnzeigename(name: string, zutatenListe: string[]): string {
-  if (zutatenListe.length >= 2) {
-    return `${zutatenListe[0]} & ${zutatenListe[1]}`;
+    const result = await response.json();
+    const photo = result.photos?.find((p: any) => p?.src?.large);
+
+    return photo?.src?.large || null;
+  } catch (error) {
+    console.error("❌ Fehler beim Abrufen von Pexels:", error);
+    return null;
   }
-  const fallback = name.split(',').map(z => z.trim()).filter(Boolean);
-  return fallback.slice(0, 2).join(' & ') || "Tagesgericht";
 }
 
-// Generiert eine nette Kurzbeschreibung
-function generateBeschreibung(zutatenListe: string[], name: string): string {
-  const basis = zutatenListe.length > 0
-    ? zutatenListe.slice(0, 3).join(', ')
-    : name.split(',').map(z => z.trim()).slice(0, 3).join(', ');
+export async function generateMetaData({ name, zutaten }: Gericht): Promise<GerichtMeta | null> {
+  const prompt = `
+Du bist ein KI-Kochassistent. Erstelle zu folgendem Gericht kompakte Metadaten:
 
-  return basis ? `Mit ${basis}.` : "Ein leckeres Gericht des Tages.";
+- "beschreibung": max. 15 Wörter, ein kurzer, realistischer Satz.
+- "bild_suche": eine englische, bildhafte Beschreibung (z. B. "crispy schnitzel with fries and salad on white plate").
+  - KEINE exakte Zutatenliste, KEINE Aufzählung.
+- "tags": nur aus dieser Liste: ${ALLOWED_TAGS.join(', ')}.
+- Nährwerte grob realistisch pro Portion schätzen.
+
+Gericht:
+Name: ${name}
+Zutaten: ${Array.isArray(zutaten) ? zutaten.join(', ') : zutaten}
+
+Format:
+{
+  "anzeigename": "...",
+  "beschreibung": "...",
+  "bild_suche": "...",
+  "tags": ["..."],
+  "naehrwerte_kcal": 0,
+  "naehrwerte_fett": 0.0,
+  "naehrwerte_eiweiss": 0.0,
+  "naehrwerte_kohlenhydrate": 0.0
+}`.trim();
+
+  try {
+    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: "Bearer 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",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "mistralai/devstral-small:free",
+        messages: [
+          { role: "system", content: "You are a helpful AI chef assistant." },
+          { role: "user", content: prompt },
+        ],
+        temperature: 0.7,
+      }),
+    });
+
+    const result = await response.json();
+    let content = result.choices?.[0]?.message?.content;
+    if (!content) {
+      console.error("❌ KI-Antwort leer.");
+      return null;
+    }
+
+    content = content
+      .replace(/^```json/, "")
+      .replace(/^```/, "")
+      .replace(/```$/, "")
+      .trim();
+
+    const parsed = JSON.parse(content);
+
+    const pexelsImage = await fetchPexelsImage(parsed.bild_suche || name);
+    parsed.bild_url = pexelsImage || "https://via.placeholder.com/600x400?text=Kein+Bild";
+
+    parsed.tags = (parsed.tags || []).filter((tag: string) =>
+      ALLOWED_TAGS.includes(tag.toLowerCase())
+    );
+
+    delete parsed.bild_suche;
+
+    return parsed;
+  } catch (err) {
+    console.error("❌ Fehler bei Metadaten-Generierung:", err);
+    return null;
+  }
 }
 
-// KI-ähnliche Metadaten-Erzeugung
-export function generateMetaData({ name, zutaten }: Gericht): GerichtMeta {
-  const raw = Array.isArray(zutaten) ? zutaten.join(', ') : zutaten || '';
-  const cleaned = cleanZutaten(raw);
-
-  const anzeigename = generateAnzeigename(name, cleaned);
-  const beschreibung = generateBeschreibung(cleaned, name);
-
-  const lower = raw.toLowerCase();
-  const tags = [
-    /chili|scharf|pfeffer|jalapeno|curry/.test(lower) ? "scharf" : null,
-    !/(fleisch|huhn|wurst|schinken|speck)/i.test(lower) ? "vegetarisch" : null,
-    !/(fleisch|ei|milch|käse|joghurt|butter|honig)/i.test(lower) ? "vegan" : null,
-    /fisch|lachs|thunfisch/.test(lower) ? "fisch" : null,
-    /schwein|rind|huhn|ente/.test(lower) ? "fleischhaltig" : null,
-    /pizza|burger|pommes|nudeln|spaghetti|lasagne/.test(lower) ? "beliebt" : null,
-  ].filter(Boolean) as string[];
-
-  return {
-    anzeigename,
-    beschreibung,
-    bild_url: `https://source.unsplash.com/featured/?food,${encodeURIComponent(anzeigename)}`,
-    tags: tags.filter(tag => ALLOWED_TAGS.includes(tag)),
-    naehrwerte_kcal: Math.floor(200 + Math.random() * 400),
-    naehrwerte_fett: +(Math.random() * 20).toFixed(1),
-    naehrwerte_eiweiss: +(Math.random() * 30).toFixed(1),
-    naehrwerte_kohlenhydrate: +(Math.random() * 50).toFixed(1),
-  };
-}
-
-// Ergänzt alle fehlenden Metadaten
 export const completeMissingGerichte = async () => {
-  const { data, error } = await supabase.from('gerichte').select('*');
-
-  if (error) {
+  const { data, error } = await supabase.from('gerichte').select('*').eq('meta_generiert', false);
+  if (error || !data) {
     console.error("❌ Fehler beim Laden der Gerichte:", error);
     return;
   }
-
-  if (!data || data.length === 0) return;
 
   for (const gericht of data) {
     const { name, zutaten } = gericht;
     if (!name || !zutaten) continue;
 
-    const meta = generateMetaData({ name, zutaten });
+    const meta = await generateMetaData({ name, zutaten });
+    await delay(1200);
+    if (!meta) continue;
 
     const { error: updateError } = await supabase
       .from('gerichte')
-      .update(meta)
+      .update({ ...meta, meta_generiert: true })
       .eq('id', gericht.id);
 
     if (updateError) {
-      console.error(`❌ Fehler bei Gericht ID ${gericht.id}:`, updateError);
+      console.error(`❌ Fehler bei Update ID ${gericht.id}:`, updateError);
     } else {
       console.log(`✅ Metadaten ergänzt für ${meta.anzeigename}`);
     }
   }
 };
 
-// Holt externe Daten
 export const fetchDataFromRenderAPI = async () => {
   try {
     const res = await fetch('https://mensahd-api.onrender.com/api/mensa');
     return await res.json();
   } catch (err) {
-    console.error("❌ API-Fetch fehlgeschlagen:", err);
+    console.error("❌ Fehler bei externem API-Fetch:", err);
     return [];
   }
 };
 
-// Speichert neue Gerichte + ergänzt automatisch
 export const saveDataToSupabase = async (data: any[]) => {
+  const allowedCategories = ["menü 1", "menü vegan"];
+  let changesMade = false;
+
   for (const item of data) {
+    const rawCategory = (item.category || "").trim().toLowerCase();
+    if (!allowedCategories.includes(rawCategory)) continue;
+
     const gericht = {
       name: item.name,
       zutaten: item.notes || [],
@@ -160,20 +191,38 @@ export const saveDataToSupabase = async (data: any[]) => {
     }
 
     if (!existing) {
-      const { error: insertError } = await supabase.from('gerichte').insert(gericht);
-      if (insertError) console.error('❌ Fehler beim Einfügen:', insertError);
-      else console.log(`✅ Eingefügt: ${gericht.name}`);
+      const { error: insertError } = await supabase.from('gerichte').insert({ ...gericht, meta_generiert: false });
+      if (!insertError) {
+        changesMade = true;
+        console.log(`✅ Gericht eingefügt: ${gericht.name}`);
+      } else {
+        console.error('❌ Fehler beim Einfügen:', insertError);
+      }
     } else {
       const { error: updateError } = await supabase
         .from('gerichte')
-        .update({ zutaten: gericht.zutaten, kategorie: gericht.kategorie, preis: gericht.preis })
+        .update({
+          zutaten: gericht.zutaten,
+          kategorie: gericht.kategorie,
+          preis: gericht.preis,
+          meta_generiert: false,
+        })
         .eq('id', existing.id);
 
-      if (updateError) console.error('❌ Fehler beim Aktualisieren:', updateError);
-      else console.log(`🔄 Aktualisiert: ${gericht.name}`);
+      if (!updateError) {
+        changesMade = true;
+        console.log(`🔄 Gericht aktualisiert: ${gericht.name}`);
+      } else {
+        console.error(`❌ Fehler beim Update: ${gericht.name}`, updateError);
+      }
     }
   }
 
-  // Immer danach: ergänzen
-  await completeMissingGerichte();
+  if (changesMade) {
+    await completeMissingGerichte();
+  } else {
+    console.log("🚀 Keine Änderungen – Weiterleitung zur Startseite empfohlen.");
+  }
+
+  return changesMade;
 };
