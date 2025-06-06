@@ -28,6 +28,7 @@ function InnerHomeScreen() {
   const theme = useColorScheme() || 'light';
   const router = useRouter();
   const [loading, setLoading] = useState(true);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   const logoSource =
     theme === 'dark'
@@ -37,7 +38,7 @@ function InnerHomeScreen() {
   const iconColor = Colors[theme].text;
 
   useEffect(() => {
-    const checkOnboardingStatus = async () => {
+    const checkUserStatus = async () => {
       const { data: { user }, error: authError } = await supabase.auth.getUser();
 
       if (!user || authError) {
@@ -45,27 +46,39 @@ function InnerHomeScreen() {
         return;
       }
 
-      const { data, error } = await supabase
+      const { data: onboardingData, error: onboardingError } = await supabase
         .from('intro_flags')
         .select('onboarding_seen')
         .eq('user_id', user.id)
         .single();
 
-      if (error && error.code !== 'PGRST116') {
-        console.error('Fehler beim Laden von onboarding_seen:', error);
+      if (onboardingError && onboardingError.code !== 'PGRST116') {
+        console.error('Fehler beim Laden von onboarding_seen:', onboardingError);
         return;
       }
 
-      const hasSeenOnboarding = data?.onboarding_seen ?? false;
-
+      const hasSeenOnboarding = onboardingData?.onboarding_seen ?? false;
       if (!hasSeenOnboarding) {
         router.replace('/onboardingscreen');
-      } else {
-        setLoading(false);
+        return;
       }
+
+      const { data: userData, error: userError } = await supabase
+        .from('users')
+        .select('role')
+        .eq('id', user.id)
+        .single();
+
+      if (userError) {
+        console.error('Fehler beim Abrufen der Rolle:', userError);
+      } else {
+        setIsAdmin(userData.role === 'admin');
+      }
+
+      setLoading(false);
     };
 
-    checkOnboardingStatus();
+    checkUserStatus();
   }, []);
 
   if (loading) {
@@ -114,6 +127,17 @@ function InnerHomeScreen() {
           color={Colors[theme].accent3}
           onPress={() => router.push('/tinder')}
         />
+        {isAdmin && (
+          <PrimaryButton
+            icon="settings-outline"
+            label="Admin Panel"
+            color="#d9534f"
+            onPress={() => {
+              console.log('Admin Panel kommt bald!');
+              // router.push('/admin'); // Später aktivieren
+            }}
+          />
+        )}
       </View>
     </SafeAreaView>
   );
