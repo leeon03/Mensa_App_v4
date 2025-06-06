@@ -22,6 +22,7 @@ import * as Animatable from 'react-native-animatable';
 import { supabase } from '../constants/supabase';
 import { generateMetaData } from '../hooks/dataSync';
 import Card from '../components/ui/card';
+import SpeiseplanPDFExport from '../components/pdfExport';
 
 const screenWidth = Dimensions.get('window').width;
 
@@ -102,7 +103,7 @@ function InnerSpeiseplanScreen() {
       });
 
       const bewertungen: Bewertung[] = (bewertungenRes.data || [])
-        .filter((b: any) => b.gerichte !== null) // ⬅️ WICHTIG
+        .filter((b: any) => b.gerichte !== null)
         .map((b: any) => ({
           stars: b.stars,
           gericht_name: b.gerichte.name,
@@ -222,41 +223,48 @@ function InnerSpeiseplanScreen() {
           </Text>
         </View>
       ) : (
-        <FlatList
-          data={gerichte}
-          keyExtractor={(item) => item.id.toString()}
-          renderItem={({ item, index }) => {
-            const gerichtBewertungen = bewertungen.filter((b) => b.gericht_name === item.name);
+        <>
+          <FlatList
+            data={gerichte}
+            keyExtractor={(item) => item.id.toString()}
+            renderItem={({ item, index }) => {
+              const gerichtBewertungen = bewertungen.filter((b) => b.gericht_name === item.name);
 
-            return (
-              <Animatable.View
-                animation="fadeInUp"
-                duration={600}
-                delay={index * 100}
-                style={styles.cardContainer}
-              >
-                <Card
-                  name={item.name}
-                  anzeigename={item.anzeigename}
-                  beschreibung={item.beschreibung}
-                  bild_url={item.bild_url}
-                  kategorie={item.kategorie || ''}
-                  bewertungen={gerichtBewertungen}
-                  tags={item.tags}
-                  preis={parseFloat(item.preis)}
-                  isFavorite={favorites[item.id]}
-                  isAlert={alerts[item.id]}
-                  onFavoritePress={() => handleToggleFavorite(item.id)}
-                  onAlertPress={() => handleToggleAlert(item.id)}
-                />
-              </Animatable.View>
-            );
-          }}
-        />
+              return (
+                <Animatable.View
+                  animation="fadeInUp"
+                  duration={600}
+                  delay={index * 100}
+                  style={styles.cardContainer}
+                >
+                  <Card
+                    name={item.name}
+                    anzeigename={item.anzeigename}
+                    beschreibung={item.beschreibung}
+                    bild_url={item.bild_url}
+                    kategorie={item.kategorie || ''}
+                    bewertungen={gerichtBewertungen}
+                    tags={item.tags}
+                    preis={parseFloat(item.preis)}
+                    isFavorite={favorites[item.id]}
+                    isAlert={alerts[item.id]}
+                    onFavoritePress={() => handleToggleFavorite(item.id)}
+                    onAlertPress={() => handleToggleAlert(item.id)}
+                  />
+                </Animatable.View>
+              );
+            }}
+          />
+
+          <View style={styles.exportButtonContainer}>
+            <SpeiseplanPDFExport wochengerichte={gerichte} />
+          </View>
+        </>
       )}
     </SafeAreaView>
   );
 }
+
 
 const styles = StyleSheet.create({
   container: {
@@ -308,4 +316,10 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 20,
   },
+  exportButtonContainer: {
+  marginTop: 16,
+  marginBottom: 32,
+  alignItems: 'center',
+},
+
 });
