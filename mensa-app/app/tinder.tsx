@@ -7,17 +7,17 @@ import {
   Animated,
   PanResponder,
   TouchableOpacity,
-  Modal,
   ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../constants/Colors';
 import { useColorScheme } from 'react-native';
 import * as Haptics from 'expo-haptics';
-import LottieView from 'lottie-react-native';
-import { BlurView } from 'expo-blur';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '../constants/supabase';
+import { MatchModal } from '../components/tinder/matchModal';
+import IntroModal from '../components/tinder/introModal';
+import SwipeCard from '../components/tinder/swipeCardTinder';
 
 const screenWidth = Dimensions.get('window').width;
 
@@ -26,7 +26,6 @@ interface Gericht {
   name: string;
   beschreibung: string;
   tags: string[];
-  bild_url?: string;
 }
 
 export default function TinderScreen() {
@@ -49,11 +48,10 @@ function SwipeScreen() {
   const [introVisible, setIntroVisible] = useState(true);
   const [introStep, setIntroStep] = useState(1);
   const [loading, setLoading] = useState(true);
-  const fadeAnim = useRef(new Animated.Value(0)).current;
 
   const position = useRef(new Animated.ValueXY()).current;
-  const [likeScale] = useState(new Animated.Value(1));
-  const [dislikeScale] = useState(new Animated.Value(1));
+  const likeScale = useRef(new Animated.Value(1)).current;
+  const dislikeScale = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
     const fetchIntroSeen = async () => {
@@ -75,27 +73,30 @@ function SwipeScreen() {
   }, []);
 
   useEffect(() => {
-    fadeAnim.setValue(0);
-    Animated.timing(fadeAnim, {
-      toValue: 1,
-      duration: 400,
-      useNativeDriver: true,
-    }).start();
-  }, [introStep]);
-
-  useEffect(() => {
     const loadGerichte = async () => {
-      const { data, error } = await supabase.from('gerichte').select('*');
+      const { data, error } = await supabase
+        .from('gerichte')
+        .select('id, name, beschreibung, tags');
+
       if (error) {
         console.error('Fehler beim Laden der Gerichte:', error.message);
+        setLoading(false);
         return;
       }
 
-      const uniqueById = Array.from(
-        new Map(data.map((g: Gericht) => [g.id, g])).values()
-      );
+      if (data && Array.isArray(data)) {
+        const parsed = data.map((g: any) => ({
+          ...g,
+          tags: typeof g.tags === 'string'
+            ? g.tags.split(',').map((t: string) => t.trim())
+            : Array.isArray(g.tags) ? g.tags : [],
+        }));
 
-      setGerichte(uniqueById);
+        setGerichte(parsed);
+      } else {
+        console.warn('Unerwartete Datenstruktur:', data);
+      }
+
       setLoading(false);
     };
 
@@ -200,63 +201,22 @@ function SwipeScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: Colors[theme].background }]}>
-      {/* Intro Popup */}
-      <Modal visible={introVisible} transparent animationType="fade">
-        <View style={styles.matchContainer}>
-          <BlurView intensity={40} tint="dark" style={styles.matchCard}>
-            <Text style={[styles.matchTitle, { color: 'white' }]}>👋 Na, heiß auf was Leckeres?</Text>
-            <Animated.View style={{ opacity: fadeAnim, marginTop: 20 }}>
-              {introStep === 1 && <Text style={[styles.description, { color: 'white' }]}>1️⃣ Swipe nach rechts, um ein Gericht zu liken.</Text>}
-              {introStep === 2 && <Text style={[styles.description, { color: 'white' }]}>2️⃣ Swipe nach links, um ein Gericht zu überspringen.</Text>}
-              {introStep === 3 && <Text style={[styles.description, { color: 'white' }]}>3️⃣ Deine Favoriten findest du später gesammelt.</Text>}
-            </Animated.View>
-            <View style={styles.introControls}>
-              {introStep < 3 ? (
-                <TouchableOpacity onPress={() => setIntroStep((prev) => prev + 1)} style={styles.arrowButton}>
-                  <Ionicons name="chevron-forward" size={28} color="#2ecc71" />
-                </TouchableOpacity>
-              ) : (
-                <TouchableOpacity onPress={handleIntroDismiss} style={styles.startButton}>
-                  <Text style={styles.startButtonText}>Los geht’s!</Text>
-                </TouchableOpacity>
-              )}
-            </View>
-            <TouchableOpacity onPress={handleIntroDismiss} style={{ marginTop: 20 }}>
-              <Text style={{ color: 'white', fontSize: 14, textDecorationLine: 'underline' }}>
-                Nicht mehr anzeigen
-              </Text>
-            </TouchableOpacity>
-          </BlurView>
-        </View>
-      </Modal>
+      <IntroModal
+        visible={introVisible}
+        step={introStep}
+        onNextStep={() => setIntroStep((prev) => prev + 1)}
+        onDismiss={handleIntroDismiss}
+      />
 
-      {/* Header */}
       <Text style={[styles.header, { color: Colors[theme].accent3 }]}>Essens Tinder</Text>
 
-      {/* Card */}
-      <Animated.View
-        {...panResponder.panHandlers}
-        style={[styles.card, swipeCardStyle, { backgroundColor: Colors[theme].card }]}
-      >
-        <Text style={[styles.title, { color: Colors[theme].text }]}>{currentGericht.name}</Text>
-        <Text style={[styles.description, { color: Colors[theme].text }]}>{currentGericht.beschreibung}</Text>
+      <SwipeCard
+        gericht={currentGericht}
+        theme={theme}
+        panHandlers={panResponder.panHandlers}
+        style={swipeCardStyle}
+      />
 
-        <View style={styles.imagePlaceholder}>
-          <Text style={{ color: '#999' }}>Bild folgt</Text>
-        </View>
-
-        <View style={styles.tagRow}>
-          {currentGericht.tags.map((tag, index) => (
-            <View key={index} style={styles.tagChip}>
-              <Text style={styles.tagText}>
-                {tag === 'vegan' ? '🌱 Vegan' : tag === 'vegetarisch' ? '🥦 Vegetarisch' : tag === 'scharf' ? '🌶️ Scharf' : tag}
-              </Text>
-            </View>
-          ))}
-        </View>
-      </Animated.View>
-
-      {/* Swipe Buttons */}
       <View style={styles.buttons}>
         <Animated.View style={{ transform: [{ scale: dislikeScale }] }}>
           <TouchableOpacity onPress={() => handleSwipe('dislike')} style={styles.iconButton}>
@@ -270,24 +230,7 @@ function SwipeScreen() {
         </Animated.View>
       </View>
 
-      {/* Match Modal */}
-      <Modal visible={showMatch} transparent animationType="fade">
-        <TouchableOpacity activeOpacity={1} onPress={() => setShowMatch(false)} style={styles.matchContainer}>
-          <BlurView intensity={40} tint="light" style={styles.matchCard}>
-            <Text style={styles.matchTitle}>✨ It's a Match!</Text>
-            <LottieView
-              source={require('../assets/animations/match.json')}
-              autoPlay
-              loop
-              style={{ width: 200, height: 200, marginTop: 20 }}
-            />
-            <View style={styles.matchImageTall}>
-              <Text style={{ color: '#444', fontSize: 18 }}>Bild folgt</Text>
-            </View>
-            <Text style={styles.tapHint}>Zum Fortfahren tippen</Text>
-          </BlurView>
-        </TouchableOpacity>
-      </Modal>
+      <MatchModal visible={showMatch} onClose={() => setShowMatch(false)} />
     </View>
   );
 }
@@ -311,54 +254,6 @@ const styles = StyleSheet.create({
     textShadowOffset: { width: 1, height: 2 },
     textShadowRadius: 3,
   },
-  card: {
-    width: '100%',
-    padding: 24,
-    borderRadius: 20,
-    alignItems: 'center',
-    elevation: 3,
-    position: 'relative',
-    shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowRadius: 10,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: '700',
-    textAlign: 'center',
-  },
-  description: {
-    fontSize: 16,
-    marginTop: 6,
-    marginBottom: 12,
-    textAlign: 'center',
-  },
-  imagePlaceholder: {
-    width: '100%',
-    height: 160,
-    backgroundColor: '#ddd',
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  tagRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'center',
-    marginTop: 8,
-  },
-  tagChip: {
-    backgroundColor: '#eee',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 16,
-    margin: 4,
-  },
-  tagText: {
-    fontSize: 13,
-    color: '#333',
-  },
   buttons: {
     position: 'absolute',
     bottom: 32,
@@ -381,102 +276,5 @@ const styles = StyleSheet.create({
   doneText: {
     fontSize: 18,
     fontStyle: 'italic',
-  },
-  overlayLabel: {
-    position: 'absolute',
-    top: 40,
-    paddingHorizontal: 18,
-    paddingVertical: 10,
-    borderRadius: 12,
-    borderWidth: 3,
-    zIndex: 10,
-  },
-  overlayText: {
-    fontSize: 24,
-    fontWeight: '800',
-    letterSpacing: 1.5,
-  },
-  matchContainer: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  matchCard: {
-    borderRadius: 28,
-    paddingVertical: 40,
-    paddingHorizontal: 24,
-    alignItems: 'center',
-    width: '100%',
-    maxWidth: 380,
-    shadowColor: '#000',
-    shadowOpacity: 0.3,
-    shadowRadius: 15,
-    elevation: 12,
-    overflow: 'hidden',
-  },
-  lottie: {
-    width: 200,
-    height: 200,
-    marginTop: 20,
-  },
-  matchTitle: {
-    fontSize: 36,
-    fontWeight: '900',
-    color: '#2ecc71',
-    textAlign: 'center',
-    marginTop: 10,
-    textShadowColor: 'rgba(0,0,0,0.2)',
-    textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 6,
-  },
-  matchImageTall: {
-    width: 280,
-    height: 200,
-    backgroundColor: '#fff',
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 24,
-    shadowColor: '#000',
-    shadowOpacity: 0.2,
-    shadowRadius: 10,
-    elevation: 8,
-  },
-  tapHint: {
-    marginTop: 20,
-    fontSize: 15,
-    color: '#2ecc71',
-    fontStyle: 'italic',
-  },
-  introControls: {
-    marginTop: 30,
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  arrowButton: {
-    backgroundColor: '#fff',
-    padding: 12,
-    borderRadius: 50,
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOpacity: 0.2,
-    shadowRadius: 6,
-  },
-  startButton: {
-    backgroundColor: '#2ecc71',
-    paddingVertical: 12,
-    paddingHorizontal: 28,
-    borderRadius: 24,
-    shadowColor: '#000',
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
-  },
-  startButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
   },
 });

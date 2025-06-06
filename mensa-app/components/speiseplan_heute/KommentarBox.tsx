@@ -169,13 +169,13 @@ export default function KommentarBox({ onSubmit, disabled }: Props) {
           <>
             <LottieView
               ref={checkRef}
-              source={require('../assets/animations/check.json')}
+              source={require('../../assets/animations/check.json')}
               style={styles.checkmark}
               loop={false}
             />
             <LottieView
               ref={confettiRef}
-              source={require('../assets/animations/confetti.json')}
+              source={require('../../assets/animations/confetti.json')}
               style={styles.confetti}
               loop={false}
             />
