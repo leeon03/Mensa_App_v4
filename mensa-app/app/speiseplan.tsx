@@ -11,7 +11,7 @@ import {
   FlatList,
   UIManager,
 } from 'react-native';
-import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '../constants/Colors';
 import { useColorScheme } from 'react-native';
 import * as Haptics from 'expo-haptics';
@@ -22,7 +22,7 @@ import Card from '../components/ui/card';
 import SpeiseplanPDFExport from '../components/pdfExport';
 import WeekSelector from '../components/speiseplan_heute/weekSelector';
 
-import { addDays, startOfWeek, format } from 'date-fns';
+import { addDays, format } from 'date-fns';
 
 const screenWidth = Dimensions.get('window').width;
 
@@ -45,11 +45,7 @@ interface Bewertung {
 }
 
 export default function SpeiseplanScreen() {
-  return (
-    <SafeAreaProvider>
-      <InnerSpeiseplanScreen />
-    </SafeAreaProvider>
-  );
+  return <InnerSpeiseplanScreen />;
 }
 
 function InnerSpeiseplanScreen() {
