@@ -10,6 +10,7 @@ import {
   UIManager,
   ActivityIndicator,
   RefreshControl,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { Colors } from '../constants/Colors';
 import { useColorScheme } from 'react-native';
@@ -74,7 +75,62 @@ function HeuteContent() {
   const [ausgewählt, setAusgewählt] = useState<number | null>(null);
   const [alerts, setAlerts] = useState<Record<number, boolean>>({});
 
-  const { isFavorite, toggleFavorite } = useFavorites(); // ✅ Global verwendet
+  const { isFavorite, toggleFavorite } = useFavorites();
+
+  const fetchKommentareFürGericht = async (gerichtId: number) => {
+    const [{ data: gerichtBews }, { data: avgStars }] = await Promise.all([
+      supabase
+        .from('bewertungen')
+        .select('id, stars, kommentar, created_at, user_id, users(first_name, last_name)')
+        .eq('gericht_id', gerichtId)
+        .order('created_at', { ascending: false }),
+
+      supabase
+        .from('bewertungen')
+        .select('stars')
+        .eq('gericht_id', gerichtId),
+    ]);
+
+    const kommentare: Kommentar[] = (gerichtBews || []).map((bew) => {
+      const firstName = bew.users?.first_name || '';
+      const lastInitial = bew.users?.last_name?.charAt(0) || '';
+      const formattedName = `${firstName} ${lastInitial}.`.trim();
+
+      return {
+        id: bew.id,
+        stars: bew.stars,
+        text: bew.kommentar,
+        user: formattedName,
+        own: bew.user_id === userId,
+      };
+    });
+
+    setGerichte((prev) =>
+      prev.map((gericht) =>
+        gericht.id === gerichtId ? { ...gericht, kommentare } : gericht
+      )
+    );
+
+    if (avgStars && avgStars.length > 0) {
+      const gerichtName = gerichte.find((g) => g.id === gerichtId)?.name;
+      if (gerichtName) {
+        const neueDurchschnitte = avgStars.filter(s => typeof s.stars === 'number');
+        const avg =
+          neueDurchschnitte.reduce((sum, val) => sum + val.stars, 0) /
+          neueDurchschnitte.length;
+
+        const neueBewertung: Bewertung = {
+          gericht_name: gerichtName,
+          stars: avg,
+        };
+
+        setBewertungen((prev) => {
+          const andere = prev.filter((b) => b.gericht_name !== gerichtName);
+          return [...andere, neueBewertung];
+        });
+      }
+    }
+  };
 
   const fetchGerichte = async () => {
     setLoading(true);
@@ -171,68 +227,75 @@ function HeuteContent() {
   }
 
   return (
-    <ScrollView
-      style={[styles.container, { backgroundColor: themeColor.background }]}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 80 : 0}
     >
-      <Animatable.Text
-        animation="fadeInDown"
-        delay={100}
-        style={[styles.title, { color: themeColor.accent2 }]}
+      <ScrollView
+        style={[styles.container, { backgroundColor: themeColor.background }]}
+        keyboardShouldPersistTaps="handled"
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
-        Heute in der Mensa
-      </Animatable.Text>
+        <Animatable.Text
+          animation="fadeInDown"
+          delay={100}
+          style={[styles.title, { color: themeColor.accent2 }]}
+        >
+          Heute in der Mensa
+        </Animatable.Text>
 
-      <Legende />
+        <Legende />
 
-      {gerichte.length === 0 ? (
-        <Text style={{ textAlign: 'center', marginTop: 40, color: themeColor.text }}>
-          Keine Gerichte für heute gefunden.
-        </Text>
-      ) : (
-        gerichte.map((gericht) => {
-          const isActive = ausgewählt === gericht.id;
-          const gerichtBewertungen = bewertungen.filter(
-            (b) => b.gericht_name === gericht.name
-          );
+        {gerichte.length === 0 ? (
+          <Text style={{ textAlign: 'center', marginTop: 40, color: themeColor.text }}>
+            Keine Gerichte für heute gefunden.
+          </Text>
+        ) : (
+          gerichte.map((gericht) => {
+            const isActive = ausgewählt === gericht.id;
+            const gerichtBewertungen = bewertungen.filter(
+              (b) => b.gericht_name === gericht.name
+            );
 
-          return (
-            <Animatable.View
-              key={gericht.id}
-              animation="fadeInUp"
-              delay={gericht.id * 100}
-              style={{ marginBottom: 16 }}
-            >
-              <TouchableOpacity onPress={() => setAusgewählt(isActive ? null : gericht.id)}>
-                <Card
-                  name={gericht.name}
-                  anzeigename={gericht.anzeigename}
-                  beschreibung={gericht.beschreibung}
-                  bild_url={gericht.bild_url}
-                  kategorie={gericht.kategorie || ''}
-                  bewertungen={gerichtBewertungen}
-                  tags={gericht.tags}
-                  preis={parseFloat(gericht.preis)}
-                  isFavorite={isFavorite(gericht.name)} // ✅ Favorit aus Context
-                  isAlert={alerts[gericht.id] || false}
-                  onFavoritePress={() => toggleFavorite(gericht.id, gericht.name)} // ✅ Favorit schalten
-                  onAlertPress={() => handleToggleAlert(gericht.id)}
-                />
-              </TouchableOpacity>
+            return (
+              <Animatable.View
+                key={gericht.id}
+                animation="fadeInUp"
+                delay={gericht.id * 100}
+                style={{ marginBottom: 16 }}
+              >
+                <TouchableOpacity onPress={() => setAusgewählt(isActive ? null : gericht.id)}>
+                  <Card
+                    name={gericht.name}
+                    anzeigename={gericht.anzeigename}
+                    beschreibung={gericht.beschreibung}
+                    bild_url={gericht.bild_url}
+                    kategorie={gericht.kategorie || ''}
+                    bewertungen={gerichtBewertungen}
+                    tags={gericht.tags}
+                    preis={parseFloat(gericht.preis)}
+                    isFavorite={isFavorite(gericht.name)}
+                    isAlert={alerts[gericht.id] || false}
+                    onFavoritePress={() => toggleFavorite(gericht.id, gericht.name)}
+                    onAlertPress={() => handleToggleAlert(gericht.id)}
+                  />
+                </TouchableOpacity>
 
-              {isActive && (
-                <GerichtBewertungHeute
-                  gerichtId={gericht.id}
-                  kommentare={gericht.kommentare}
-                  userId={userId}
-                  onUpdate={fetchGerichte}
-                />
-              )}
-            </Animatable.View>
-          );
-        })
-      )}
-    </ScrollView>
+                {isActive && (
+                  <GerichtBewertungHeute
+                    gerichtId={gericht.id}
+                    kommentare={gericht.kommentare}
+                    userId={userId}
+                    onUpdate={() => fetchKommentareFürGericht(gericht.id)}
+                  />
+                )}
+              </Animatable.View>
+            );
+          })
+        )}
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
