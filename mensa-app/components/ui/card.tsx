@@ -7,7 +7,11 @@ import {
   Pressable,
   useColorScheme,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import {
+  Ionicons,
+  MaterialCommunityIcons,
+  FontAwesome5,
+} from '@expo/vector-icons';
 import { Colors } from '../../constants/Colors';
 import { Audio } from 'expo-av';
 import * as Haptics from 'expo-haptics';
@@ -23,13 +27,66 @@ type CardProps = {
   beschreibung: string;
   bild_url: string;
   kategorie: string;
-  bewertungen: Bewertung[]; // ⬅️ NEU
+  bewertungen: Bewertung[];
   tags?: string[];
   preis: number;
   isFavorite: boolean;
   isAlert: boolean;
   onFavoritePress: () => void;
   onAlertPress: () => void;
+};
+
+const TAGS = {
+  vegan: {
+    label: 'Vegan',
+    icon: <MaterialCommunityIcons name="leaf" size={14} color="#000" />,
+    color: '#A5D6A7',
+  },
+  vegetarisch: {
+    label: 'Vegetarisch',
+    icon: <MaterialCommunityIcons name="food-apple" size={14} color="#000" />,
+    color: '#C5E1A5',
+  },
+  leicht: {
+    label: 'Leicht',
+    icon: <Ionicons name="sunny" size={14} color="#000" />,
+    color: '#FFF59D',
+  },
+  glutenfrei: {
+    label: 'Glutenfrei',
+    icon: <Ionicons name="ban" size={14} color="#000" />,
+    color: '#FFE082',
+  },
+  scharf: {
+    label: 'Scharf',
+    icon: <Ionicons name="flame" size={14} color="#000" />,
+    color: '#EF9A9A',
+  },
+  fleischhaltig: {
+    label: 'Fleischhaltig',
+    icon: <MaterialCommunityIcons name="cow" size={14} color="#000" />,
+    color: '#E57373',
+  },
+  fischhaltig: {
+    label: 'Fischhaltig',
+    icon: <MaterialCommunityIcons name="fish" size={14} color="#000" />,
+    color: '#81D4FA',
+  },
+  beliebt: {
+    label: 'Beliebt',
+    icon: <Ionicons name="flame" size={14} color="#000" />,
+    color: '#F48FB1',
+  },
+  favorit: {
+    label: 'Favorit',
+    icon: <Ionicons name="heart" size={14} color="#000" />,
+    color: '#F06292',
+  },
+  erinnerung: {
+    label: 'Erinnerung',
+    icon: <Ionicons name="notifications" size={14} color="#000" />,
+    color: '#B0BEC5',
+  },
 };
 
 const Card: React.FC<CardProps> = ({
@@ -48,17 +105,6 @@ const Card: React.FC<CardProps> = ({
 }) => {
   const theme = useColorScheme() || 'light';
   const themeColor = Colors[theme];
-
-  const tagColors: Record<string, string> = {
-    vegetarisch: '#8BC34A',
-    vegan: '#4CAF50',
-    fleischhaltig: '#B71C1C',
-    scharf: '#F44336',
-    fischhaltig: '#03A9F4',
-    glutenfrei: '#FF9800',
-    leicht: '#AED581',
-    beliebt: '#FF4081',
-  };
 
   const triggerHaptic = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -85,7 +131,7 @@ const Card: React.FC<CardProps> = ({
     onAlertPress();
   };
 
-  const filtered = bewertungen.filter(b => b.gericht_name === name);
+  const filtered = bewertungen.filter((b) => b.gericht_name === name);
   const avg =
     filtered.length > 0
       ? filtered.reduce((sum, b) => sum + b.stars, 0) / filtered.length
@@ -112,7 +158,12 @@ const Card: React.FC<CardProps> = ({
   };
 
   return (
-    <View style={[styles.card, { backgroundColor: themeColor.card, shadowColor: themeColor.text }]}>
+    <View
+      style={[
+        styles.card,
+        { backgroundColor: themeColor.card, shadowColor: themeColor.text },
+      ]}
+    >
       <View style={styles.imageContainer}>
         <Image source={{ uri: bild_url }} style={styles.image} />
         <View style={styles.iconContainer}>
@@ -123,7 +174,10 @@ const Card: React.FC<CardProps> = ({
               color={isFavorite ? '#e74c3c' : '#FFF'}
             />
           </Pressable>
-          <Pressable onPress={handleAlertPress} style={[styles.iconButton, { marginLeft: 8 }]}>
+          <Pressable
+            onPress={handleAlertPress}
+            style={[styles.iconButton, { marginLeft: 8 }]}
+          >
             <Ionicons
               name={isAlert ? 'notifications' : 'notifications-outline'}
               size={24}
@@ -139,21 +193,33 @@ const Card: React.FC<CardProps> = ({
             {kategorie.toUpperCase()}
           </Text>
         ) : null}
-        <Text style={[styles.title, { color: themeColor.text }]}>{anzeigename}</Text>
-        <Text style={[styles.description, { color: themeColor.text }]}>{beschreibung}</Text>
+        <Text style={[styles.title, { color: themeColor.text }]}>
+          {anzeigename}
+        </Text>
+        <Text style={[styles.description, { color: themeColor.text }]}>
+          {beschreibung}
+        </Text>
 
         {tags.length > 0 && (
-          <View style={styles.tagsContainer}>
-            {tags.map((tag: string) => {
-              const color = tagColors[tag.toLowerCase()] || '#ccc';
-              return (
-                <Text key={tag} style={[styles.tag, { backgroundColor: color }]}>
-                  {tag}
-                </Text>
-              );
-            })}
-          </View>
+        <View style={styles.tagsContainer}>
+          {tags.map((tag: string) => {
+            const key = tag.toLowerCase();
+            const tagData = (TAGS as Record<string, typeof TAGS[keyof typeof TAGS]>)[key];
+            if (!tagData) return null;
+
+            return (
+              <View
+                key={key}
+                style={[styles.tag, { backgroundColor: tagData.color }]}
+              >
+                {tagData.icon}
+                <Text style={styles.tagText}>{tagData.label}</Text>
+              </View>
+            );
+          })}
+        </View>
         )}
+
 
         <View style={styles.bottomRow}>
           <View style={styles.ratingContainer}>{renderStars()}</View>
@@ -217,15 +283,19 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     marginBottom: 10,
+    gap: 6,
   },
   tag: {
-    color: '#fff',
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 20,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  tagText: {
     fontSize: 12,
-    paddingVertical: 2,
-    paddingHorizontal: 8,
-    borderRadius: 10,
-    marginRight: 6,
-    marginBottom: 6,
+    color: '#000',
+    marginLeft: 6,
   },
   bottomRow: {
     flexDirection: 'row',

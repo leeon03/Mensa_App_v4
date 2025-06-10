@@ -8,7 +8,7 @@ import {
   Platform,
   UIManager,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons, FontAwesome5 } from '@expo/vector-icons';
 import { useColorScheme } from 'react-native';
 import { Colors } from '../../constants/Colors';
 
@@ -17,16 +17,66 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 }
 
 const TAGS = [
-  { key: 'vegan', label: 'Vegan', icon: '🌱' },
-  { key: 'vegetarisch', label: 'Vegetarisch', icon: '🥦' },
-  { key: 'fleischhaltig', label: 'Fleischhaltig', icon: '🍖' },
-  { key: 'fischhaltig', label: 'Fischhaltig', icon: '🐟' },
-  { key: 'glutenfrei', label: 'Glutenfrei', icon: '🚫🌾' },
-  { key: 'leicht', label: 'Leicht', icon: '🌤️' },
-  { key: 'scharf', label: 'Scharf', icon: '🌶️' },
-  { key: 'beliebt', label: 'Beliebt', icon: '🔥' },
-  { key: 'favorit', label: 'Favorit', iconComponent: <Ionicons name="heart" size={14} color="red" /> },
-  { key: 'erinnerung', label: 'Erinnerung', iconComponent: <Ionicons name="notifications" size={14} color="#007AFF" /> },
+  {
+    key: 'vegan',
+    label: 'Vegan',
+    icon: <MaterialCommunityIcons name="leaf" size={14} color="#000" />,
+    color: '#A5D6A7',
+  },
+  {
+    key: 'vegetarisch',
+    label: 'Vegetarisch',
+    icon: <MaterialCommunityIcons name="food-apple" size={14} color="#000" />,
+    color: '#C5E1A5',
+  },
+  {
+    key: 'leicht',
+    label: 'Leicht',
+    icon: <Ionicons name="sunny" size={14} color="#000" />,
+    color: '#FFF59D',
+  },
+  {
+  key: 'glutenfrei',
+  label: 'Glutenfrei',
+  icon: <Ionicons name="ban" size={14} color="#000" />,
+  color: '#FFE082',
+},
+{
+  key: 'scharf',
+  label: 'Scharf',
+  icon: <Ionicons name="flame" size={14} color="#000" />,
+  color: '#EF9A9A',
+},
+  {
+    key: 'fleischhaltig',
+    label: 'Fleischhaltig',
+    icon: <MaterialCommunityIcons name="cow" size={14} color="#000" />,
+    color: '#E57373',
+  },
+  {
+    key: 'fischhaltig',
+    label: 'Fischhaltig',
+    icon: <MaterialCommunityIcons name="fish" size={14} color="#000" />,
+    color: '#81D4FA',
+  },
+  {
+    key: 'beliebt',
+    label: 'Beliebt',
+    icon: <Ionicons name="flame" size={14} color="#000" />,
+    color: '#F48FB1',
+  },
+  {
+    key: 'favorit',
+    label: 'Favorit',
+    icon: <Ionicons name="heart" size={14} color="#000" />,
+    color: '#F06292',
+  },
+  {
+    key: 'erinnerung',
+    label: 'Erinnerung',
+    icon: <Ionicons name="notifications" size={14} color="#000" />,
+    color: '#B0BEC5',
+  },
 ];
 
 export default function Legende() {
@@ -40,7 +90,7 @@ export default function Legende() {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: themeColor.surface }]}>
+    <View style={[styles.container, { backgroundColor: themeColor.card }]}>
       <TouchableOpacity onPress={toggleExpanded} style={styles.header}>
         <Text style={[styles.headerText, { color: themeColor.text }]}>Legende</Text>
         <Ionicons
@@ -53,8 +103,11 @@ export default function Legende() {
       {expanded && (
         <View style={styles.tagsWrapper}>
           {TAGS.map((tag) => (
-            <View key={tag.key} style={styles.tagChip}>
-              {tag.iconComponent ? tag.iconComponent : <Text style={styles.emoji}>{tag.icon}</Text>}
+            <View
+              key={tag.key}
+              style={[styles.tagChip, { backgroundColor: tag.color }]}
+            >
+              {tag.icon}
               <Text style={styles.chipText}>{tag.label}</Text>
             </View>
           ))}
@@ -66,46 +119,36 @@ export default function Legende() {
 
 const styles = StyleSheet.create({
   container: {
-    borderRadius: 12,
+    borderRadius: 14,
     padding: 12,
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 2,
+    marginBottom: 12,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingBottom: 8,
+    paddingBottom: 4,
   },
   headerText: {
     fontSize: 16,
-    fontWeight: '700',
+    fontWeight: '600',
   },
   tagsWrapper: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,
+    marginTop: 8,
   },
   tagChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f0f0f0',
     borderRadius: 20,
     paddingHorizontal: 10,
-    paddingVertical: 6,
-    marginRight: 6,
-    marginBottom: 6,
+    paddingVertical: 5,
   },
   chipText: {
-    fontSize: 13,
-    color: '#333',
-    marginLeft: 4,
-  },
-  emoji: {
-    fontSize: 14,
+    fontSize: 12,
+    color: '#000',
+    marginLeft: 6,
   },
 });
