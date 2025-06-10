@@ -14,11 +14,11 @@ import {
 } from 'react-native';
 import { useColorScheme } from 'react-native';
 import { Colors } from '../constants/Colors';
-import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import { supabase } from '../constants/supabase';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
+import Avatar from '../components/Avatar'; // 🔁 Import Avatar-Komponente
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -45,11 +45,11 @@ function ProfileContent() {
   const [createdAt, setCreatedAt] = useState('');
   const [notifyFavs, setNotifyFavs] = useState(true);
   const [notifyNews, setNotifyNews] = useState(false);
-  const [oldPassword, setOldPassword] = useState('');
+  const [userId, setUserId] = useState('');
+  const [userAvatar, setUserAvatar] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [repeatPassword, setRepeatPassword] = useState('');
 
-  // Daten beim Laden der Seite holen
   useEffect(() => {
     const loadUserData = async () => {
       const { data: { user }, error } = await supabase.auth.getUser();
@@ -59,11 +59,21 @@ function ProfileContent() {
         return;
       }
 
-      const first = user.user_metadata?.first_name || '';
-      const last = user.user_metadata?.last_name || '';
-      setName(`${first} ${last}`.trim());
+      const fullName = `${user.user_metadata?.first_name || ''} ${user.user_metadata?.last_name || ''}`.trim();
+      setName(fullName);
       setEmail(user.email || '');
       setCreatedAt(new Date(user.created_at).toLocaleDateString('de-DE'));
+      setUserId(user.id);
+
+      const { data: profile, error: profileError } = await supabase
+        .from('users')
+        .select('avatar_url')
+        .eq('id', user.id)
+        .single();
+
+      if (!profileError && profile?.avatar_url) {
+        setUserAvatar(profile.avatar_url);
+      }
     };
 
     loadUserData();
@@ -135,7 +145,6 @@ function ProfileContent() {
     }
 
     Alert.alert('Erfolg', 'Passwort wurde geändert.');
-    setOldPassword('');
     setNewPassword('');
     setRepeatPassword('');
   };
@@ -147,7 +156,12 @@ function ProfileContent() {
 
   return (
     <ScrollView contentContainerStyle={[styles.container, { backgroundColor: Colors[theme].background }]}>
-      <Ionicons name="person-circle" size={100} color={Colors[theme].primary} style={styles.icon} />
+      <Avatar
+        name={name}
+        avatarUri={userAvatar}
+        userId={userId}
+        onUpload={(url) => setUserAvatar(url)}
+      />
       <Text style={[styles.title, { color: Colors[theme].text }]}>Dein Profil</Text>
       <Text style={[styles.name, { color: Colors[theme].text }]}>{name}</Text>
       <Text style={[styles.email, { color: Colors[theme].text }]}>{email}</Text>
@@ -248,7 +262,6 @@ const styles = StyleSheet.create({
     padding: 24,
     alignItems: 'center',
   },
-  icon: { marginBottom: 12 },
   title: {
     fontSize: 36,
     fontWeight: '900',
