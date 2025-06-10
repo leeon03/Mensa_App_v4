@@ -4,11 +4,10 @@ import {
   Text,
   StyleSheet,
   Dimensions,
-  TouchableOpacity,
-  Platform,
   ActivityIndicator,
   Alert,
   FlatList,
+  Platform,
   UIManager,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -21,6 +20,7 @@ import { generateMetaData } from '../hooks/dataSync';
 import Card from '../components/ui/card';
 import SpeiseplanPDFExport from '../components/pdfExport';
 import WeekSelector from '../components/speiseplan_heute/weekSelector';
+import { useFavorites } from '../components/speiseplan_heute/favoritesContext';
 
 import { addDays, format } from 'date-fns';
 
@@ -55,8 +55,9 @@ function InnerSpeiseplanScreen() {
   const [bewertungen, setBewertungen] = useState<Bewertung[]>([]);
   const [loading, setLoading] = useState(true);
   const [showDatePicker, setShowDatePicker] = useState(false);
-  const [favorites, setFavorites] = useState<Record<number, boolean>>({});
   const [alerts, setAlerts] = useState<Record<number, boolean>>({});
+
+  const { isFavorite, toggleFavorite } = useFavorites(); // ✅ Kontext-Hook
 
   useEffect(() => {
     if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -101,34 +102,24 @@ function InnerSpeiseplanScreen() {
           gericht_name: b.gerichte.name,
         }));
 
-      return { gerichte, bewertungen };
+      const newAlerts: Record<number, boolean> = {};
+      gerichte.forEach((dish) => {
+        if (newAlerts[dish.id] === undefined) newAlerts[dish.id] = false;
+      });
+
+      setGerichte(gerichte);
+      setBewertungen(bewertungen);
+      setAlerts(newAlerts);
+      setLoading(false);
     } catch (error) {
       console.error('Fehler:', error);
       Alert.alert('Fehler', 'Ein unerwarteter Fehler ist aufgetreten');
-      return { gerichte: [], bewertungen: [] };
+      setLoading(false);
     }
   };
 
   useEffect(() => {
-    const loadDishes = async () => {
-      const { gerichte, bewertungen } = await fetchDishes(selectedDate);
-      setGerichte(gerichte);
-      setBewertungen(bewertungen);
-
-      const newFavorites = { ...favorites };
-      const newAlerts = { ...alerts };
-
-      gerichte.forEach((dish) => {
-        if (newFavorites[dish.id] === undefined) newFavorites[dish.id] = false;
-        if (newAlerts[dish.id] === undefined) newAlerts[dish.id] = false;
-      });
-
-      setFavorites(newFavorites);
-      setAlerts(newAlerts);
-      setLoading(false);
-    };
-
-    loadDishes();
+    fetchDishes(selectedDate);
   }, [selectedDate]);
 
   const handleDateChange = (event: any, date?: Date) => {
@@ -144,10 +135,6 @@ function InnerSpeiseplanScreen() {
     const newDate = addDays(selectedDate, direction === 'next' ? 7 : -7);
     setSelectedDate(newDate);
     Haptics.selectionAsync().catch(() => {});
-  };
-
-  const handleToggleFavorite = (id: number) => {
-    setFavorites((prev) => ({ ...prev, [id]: !prev[id] }));
   };
 
   const handleToggleAlert = (id: number) => {
@@ -199,9 +186,9 @@ function InnerSpeiseplanScreen() {
                   bewertungen={gerichtBewertungen}
                   tags={item.tags}
                   preis={parseFloat(item.preis)}
-                  isFavorite={favorites[item.id]}
+                  isFavorite={isFavorite(item.name)} // ✅ direkt aus Context
                   isAlert={alerts[item.id]}
-                  onFavoritePress={() => handleToggleFavorite(item.id)}
+                  onFavoritePress={() => toggleFavorite(item.id, item.name)} // ✅ global verwaltet
                   onAlertPress={() => handleToggleAlert(item.id)}
                 />
               </Animatable.View>

@@ -7,6 +7,7 @@ import { StyleSheet, View, ActivityIndicator } from 'react-native';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { ActionSheetProvider } from '@expo/react-native-action-sheet';
+import { FavoritesProvider } from '../components/speiseplan_heute/favoritesContext'; 
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
@@ -27,12 +28,12 @@ export default function RootLayout() {
     <GestureHandlerRootView style={styles.container}>
       <SafeAreaProvider>
         <ActionSheetProvider>
-          <>
+          <FavoritesProvider> {/* ✅ FAVORITEN-KONTEXT EINGEFÜGT */}
             <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
               <StatusBar style="auto" />
               <Stack screenOptions={{ headerShown: false }} />
             </ThemeProvider>
-          </>
+          </FavoritesProvider>
         </ActionSheetProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
