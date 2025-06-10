@@ -17,11 +17,25 @@ interface Dish {
   datum: string;
   name: string;
   zutaten: string | string[];
+  tags?: string[];
 }
 
 interface Props {
   selectedDate: Date;
 }
+
+const TAGS = [
+  { key: 'vegan', label: 'Vegan', color: '#A5D6A7' },
+  { key: 'vegetarisch', label: 'Vegetarisch', color: '#C5E1A5' },
+  { key: 'leicht', label: 'Leicht', color: '#FFF59D' },
+  { key: 'glutenfrei', label: 'Glutenfrei', color: '#FFE082' },
+  { key: 'scharf', label: 'Scharf', color: '#EF9A9A' },
+  { key: 'fleischhaltig', label: 'Fleischhaltig', color: '#E57373' },
+  { key: 'fischhaltig', label: 'Fischhaltig', color: '#81D4FA' },
+  { key: 'beliebt', label: 'Beliebt', color: '#F48FB1' },
+  { key: 'favorit', label: 'Favorit', color: '#F06292' },
+  { key: 'erinnerung', label: 'Erinnerung', color: '#B0BEC5' },
+];
 
 export default function SpeiseplanPDFExport({ selectedDate }: Props) {
   const theme = useColorScheme() || 'light';
@@ -76,64 +90,133 @@ export default function SpeiseplanPDFExport({ selectedDate }: Props) {
             <meta charset="utf-8" />
             <style>
               body {
-                font-family: Arial, sans-serif;
-                padding: 20px;
-              }
-              h1 {
-                text-align: center;
+                font-family: 'Arial', sans-serif;
+                padding: 24px;
+                background-color: #f9f9f9;
                 color: #333;
               }
+
+              h1 {
+                text-align: center;
+                color: #1a202c;
+                margin-bottom: 32px;
+              }
+
               h2 {
-                color: #555;
-                border-bottom: 1px solid #ccc;
+                color: #2d3748;
+                font-size: 18px;
+                margin-top: 32px;
+                margin-bottom: 12px;
+                border-bottom: 1px solid #e2e8f0;
                 padding-bottom: 4px;
               }
+
               .gericht {
-                margin-bottom: 20px;
                 display: flex;
-                align-items: flex-start;
+                margin-bottom: 20px;
+                border-radius: 8px;
+                overflow: hidden;
+                box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+                background-color: #fff;
               }
+
               .gericht img {
                 width: 120px;
                 height: 100px;
                 object-fit: cover;
-                border-radius: 6px;
-                margin-right: 12px;
               }
+
               .info {
+                padding: 12px;
                 flex: 1;
               }
+
               .name {
+                font-weight: 700;
                 font-size: 16px;
-                font-weight: bold;
                 margin-bottom: 4px;
               }
+
               .beschreibung {
-                font-size: 14px;
-                color: #444;
-              }
-              .preis {
-                margin-top: 4px;
                 font-size: 13px;
-                color: #777;
+                margin-bottom: 4px;
+              }
+
+              .preis {
+                font-size: 12px;
+                color: #4a5568;
+              }
+
+              .tags {
+                margin-top: 8px;
+              }
+
+              .tag {
+                display: inline-block;
+                font-size: 11px;
+                padding: 4px 8px;
+                border-radius: 999px;
+                margin-right: 6px;
+                margin-bottom: 4px;
+                color: #000;
+                font-weight: 500;
+              }
+
+              .legende {
+                margin-top: 40px;
+                padding-top: 20px;
+                border-top: 1px solid #ccc;
+              }
+
+              .legende-title {
+                font-size: 16px;
+                font-weight: bold;
+                margin-bottom: 12px;
+              }
+
+              .legende-chip {
+                display: inline-block;
+                font-size: 11px;
+                padding: 4px 10px;
+                border-radius: 999px;
+                margin: 4px 6px 4px 0;
+                font-weight: 500;
               }
             </style>
           </head>
           <body>
-            <h1>Speiseplan der Woche (${format(start, 'dd.MM.yyyy')} – ${format(end, 'dd.MM.yyyy')})</h1>
+            <h1>Speiseplan (${format(start, 'dd.MM.yyyy')} – ${format(end, 'dd.MM.yyyy')})</h1>
+
             ${tageDerWoche.map(({ label, gerichte }) => `
               <h2>${label}</h2>
               ${gerichte.length > 0 ? gerichte.map(dish => `
                 <div class="gericht">
-                  <img src="${dish.bild_url}" alt="Bild zu ${dish.anzeigename}" />
+                  <img src="${dish.bild_url}" alt="Bild" />
                   <div class="info">
                     <div class="name">${dish.anzeigename}</div>
                     <div class="beschreibung">${dish.beschreibung}</div>
                     <div class="preis">Preis: ${dish.preis} €</div>
+                    ${dish.tags?.length ? `
+                      <div class="tags">
+                        ${dish.tags.map(tag => {
+                          const found = TAGS.find(t => t.key === tag.toLowerCase());
+                          return found ? `<span class="tag" style="background-color: ${found.color}">${found.label}</span>` : '';
+                        }).join('')}
+                      </div>
+                    ` : ''}
                   </div>
                 </div>
               `).join('') : '<p>Keine Gerichte vorhanden.</p>'}
             `).join('')}
+
+            <div class="legende">
+              <div class="legende-title">Legende</div>
+              ${TAGS.map(tag => `
+                <span class="legende-chip" style="background-color: ${tag.color}">
+                  ${tag.label}
+                </span>
+              `).join('')}
+            </div>
           </body>
         </html>
       `;

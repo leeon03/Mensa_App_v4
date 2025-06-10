@@ -21,6 +21,7 @@ import Card from '../components/ui/card';
 import SpeiseplanPDFExport from '../components/pdfExport';
 import WeekSelector from '../components/speiseplan_heute/weekSelector';
 import { useFavorites } from '../components/speiseplan_heute/favoritesContext';
+import Legende from '../components/speiseplan_heute/legende';
 
 import { addDays, format } from 'date-fns';
 
@@ -57,7 +58,7 @@ function InnerSpeiseplanScreen() {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [alerts, setAlerts] = useState<Record<number, boolean>>({});
 
-  const { isFavorite, toggleFavorite } = useFavorites(); // ✅ Kontext-Hook
+  const { isFavorite, toggleFavorite } = useFavorites();
 
   useEffect(() => {
     if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -81,10 +82,10 @@ function InnerSpeiseplanScreen() {
       if (gerichteRes.error || bewertungenRes.error) {
         console.error('Fehler beim Laden:', gerichteRes.error || bewertungenRes.error);
         Alert.alert('Fehler', 'Daten konnten nicht geladen werden');
-        return { gerichte: [], bewertungen: [] };
+        return;
       }
 
-      const gerichte: Dish[] = (gerichteRes.data || []).map((dish) => {
+      const enriched: Dish[] = (gerichteRes.data || []).map((dish) => {
         if (!dish.anzeigename || !dish.beschreibung || !dish.bild_url) {
           const meta = generateMetaData({
             name: dish.name,
@@ -103,11 +104,11 @@ function InnerSpeiseplanScreen() {
         }));
 
       const newAlerts: Record<number, boolean> = {};
-      gerichte.forEach((dish) => {
-        if (newAlerts[dish.id] === undefined) newAlerts[dish.id] = false;
+      enriched.forEach((dish) => {
+        newAlerts[dish.id] = false;
       });
 
-      setGerichte(gerichte);
+      setGerichte(enriched);
       setBewertungen(bewertungen);
       setAlerts(newAlerts);
       setLoading(false);
@@ -155,6 +156,8 @@ function InnerSpeiseplanScreen() {
         handleDateChange={handleDateChange}
       />
 
+      <Legende />
+
       {loading ? (
         <ActivityIndicator size="large" color={Colors[theme].accent1} />
       ) : gerichte.length === 0 ? (
@@ -186,9 +189,9 @@ function InnerSpeiseplanScreen() {
                   bewertungen={gerichtBewertungen}
                   tags={item.tags}
                   preis={parseFloat(item.preis)}
-                  isFavorite={isFavorite(item.name)} // ✅ direkt aus Context
+                  isFavorite={isFavorite(item.name)}
                   isAlert={alerts[item.id]}
-                  onFavoritePress={() => toggleFavorite(item.id, item.name)} // ✅ global verwaltet
+                  onFavoritePress={() => toggleFavorite(item.id, item.name)}
                   onAlertPress={() => handleToggleAlert(item.id)}
                 />
               </Animatable.View>

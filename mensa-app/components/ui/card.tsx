@@ -10,7 +10,6 @@ import {
 import {
   Ionicons,
   MaterialCommunityIcons,
-  FontAwesome5,
 } from '@expo/vector-icons';
 import { Colors } from '../../constants/Colors';
 import { Audio } from 'expo-av';
@@ -36,56 +35,59 @@ type CardProps = {
   onAlertPress: () => void;
 };
 
-const TAGS = {
+const TAGS: Record<
+  string,
+  { label: string; color: string; icon: React.ReactNode }
+> = {
   vegan: {
     label: 'Vegan',
-    icon: <MaterialCommunityIcons name="leaf" size={14} color="#000" />,
     color: '#A5D6A7',
+    icon: <MaterialCommunityIcons name="leaf" size={14} color="#000" />,
   },
   vegetarisch: {
     label: 'Vegetarisch',
-    icon: <MaterialCommunityIcons name="food-apple" size={14} color="#000" />,
     color: '#C5E1A5',
+    icon: <MaterialCommunityIcons name="food-apple" size={14} color="#000" />,
   },
   leicht: {
     label: 'Leicht',
-    icon: <Ionicons name="sunny" size={14} color="#000" />,
     color: '#FFF59D',
+    icon: <Ionicons name="sunny" size={14} color="#000" />,
   },
   glutenfrei: {
     label: 'Glutenfrei',
-    icon: <Ionicons name="ban" size={14} color="#000" />,
     color: '#FFE082',
+    icon: <Ionicons name="ban" size={14} color="#000" />,
   },
   scharf: {
     label: 'Scharf',
-    icon: <MaterialCommunityIcons name="chili-hot" size={14} color="#000" />, // <--- hier geändert
     color: '#EF9A9A',
+    icon: <MaterialCommunityIcons name="chili-hot" size={14} color="#000" />,
   },
   fleischhaltig: {
     label: 'Fleischhaltig',
-    icon: <MaterialCommunityIcons name="cow" size={14} color="#000" />,
     color: '#E57373',
+    icon: <MaterialCommunityIcons name="cow" size={14} color="#000" />,
   },
   fischhaltig: {
     label: 'Fischhaltig',
-    icon: <MaterialCommunityIcons name="fish" size={14} color="#000" />,
     color: '#81D4FA',
+    icon: <MaterialCommunityIcons name="fish" size={14} color="#000" />,
   },
   beliebt: {
     label: 'Beliebt',
-    icon: <Ionicons name="flame" size={14} color="#000" />,
     color: '#F48FB1',
+    icon: <Ionicons name="flame" size={14} color="#000" />,
   },
   favorit: {
     label: 'Favorit',
-    icon: <Ionicons name="heart" size={14} color="#000" />,
     color: '#F06292',
+    icon: <Ionicons name="heart" size={14} color="#000" />,
   },
   erinnerung: {
     label: 'Erinnerung',
-    icon: <Ionicons name="notifications" size={14} color="#000" />,
     color: '#B0BEC5',
+    icon: <Ionicons name="notifications" size={14} color="#000" />,
   },
 };
 
@@ -193,31 +195,29 @@ const Card: React.FC<CardProps> = ({
             {kategorie.toUpperCase()}
           </Text>
         ) : null}
-        <Text style={[styles.title, { color: themeColor.text }]}>
-          {anzeigename}
-        </Text>
+        <Text style={[styles.title, { color: themeColor.text }]}>{anzeigename}</Text>
         <Text style={[styles.description, { color: themeColor.text }]}>
           {beschreibung}
         </Text>
 
         {tags.length > 0 && (
-        <View style={styles.tagsContainer}>
-          {tags.map((tag: string) => {
-            const key = tag.toLowerCase();
-            const tagData = (TAGS as Record<string, typeof TAGS[keyof typeof TAGS]>)[key];
-            if (!tagData) return null;
+          <View style={styles.tagsContainer}>
+            {tags.map((tag: string) => {
+              const key = tag.toLowerCase();
+              const tagData = TAGS[key];
+              if (!tagData) return null;
 
-            return (
-              <View
-                key={key}
-                style={[styles.tag, { backgroundColor: tagData.color }]}
-              >
-                {tagData.icon}
-                <Text style={styles.tagText}>{tagData.label}</Text>
-              </View>
-            );
-          })}
-        </View>
+              return (
+                <View
+                  key={key}
+                  style={[styles.tag, { backgroundColor: tagData.color }]}
+                >
+                  {tagData.icon}
+                  <Text style={styles.tagText}>{tagData.label}</Text>
+                </View>
+              );
+            })}
+          </View>
         )}
 
         <View style={styles.bottomRow}>
