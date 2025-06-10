@@ -14,15 +14,20 @@ export const FavoritesProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const [favorites, setFavorites] = useState<Record<string, boolean>>({});
   const [userId, setUserId] = useState<string | null>(null);
 
+  // 1. Auth-Status beobachten
   useEffect(() => {
-    const fetchFavorites = async () => {
+    const fetchUserAndFavorites = async () => {
       const {
-        data: { user },
+        data: { session },
         error,
-      } = await supabase.auth.getUser();
+      } = await supabase.auth.getSession();
 
-      if (error || !user) return;
+      if (error || !session?.user) {
+        setUserId(null);
+        return;
+      }
 
+      const user = session.user;
       setUserId(user.id);
 
       const { data, error: favError } = await supabase
@@ -42,7 +47,34 @@ export const FavoritesProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       setFavorites(favMap);
     };
 
-    fetchFavorites();
+    fetchUserAndFavorites();
+
+    // 2. Bei Login/Logout neu laden
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) {
+        setUserId(session.user.id);
+        // Favoriten neu laden
+        supabase
+          .from('favorites')
+          .select('gericht_name')
+          .eq('user_id', session.user.id)
+          .then(({ data, error }) => {
+            if (error) return;
+            const favMap: Record<string, boolean> = {};
+            for (const fav of data || []) {
+              favMap[fav.gericht_name] = true;
+            }
+            setFavorites(favMap);
+          });
+      } else {
+        setUserId(null);
+        setFavorites({});
+      }
+    });
+
+    return () => {
+      listener?.subscription.unsubscribe();
+    };
   }, []);
 
   const toggleFavorite = async (gerichtId: number, gerichtName: string) => {
@@ -54,7 +86,6 @@ export const FavoritesProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     const isFav = favorites[gerichtName] || false;
 
     if (!isFav) {
-      // Favorit hinzufügen
       const { data: existing, error: checkError } = await supabase
         .from('favorites')
         .select('*')
@@ -78,7 +109,6 @@ export const FavoritesProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         }
       }
     } else {
-      // Vor dem Löschen bestätigen
       Alert.alert(
         'Favorit entfernen',
         'Möchtest du dieses Gericht wirklich aus deinen Favoriten löschen?',
