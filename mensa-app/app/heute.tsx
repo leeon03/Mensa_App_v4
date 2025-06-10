@@ -20,6 +20,7 @@ import Legende from '../components/speiseplan_heute/legende';
 import { supabase } from '../constants/supabase';
 import { format } from 'date-fns';
 import GerichtBewertungHeute from '../components/speiseplan_heute/gerichtBewertungHeute';
+import { useFavorites } from '../components/speiseplan_heute/favoritesContext';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -71,8 +72,9 @@ function HeuteContent() {
   const [refreshing, setRefreshing] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
   const [ausgewählt, setAusgewählt] = useState<number | null>(null);
-  const [favorites, setFavorites] = useState<Record<number, boolean>>({});
   const [alerts, setAlerts] = useState<Record<number, boolean>>({});
+
+  const { isFavorite, toggleFavorite } = useFavorites(); // ✅ Global verwendet
 
   const fetchGerichte = async () => {
     setLoading(true);
@@ -135,7 +137,13 @@ function HeuteContent() {
       })
     );
 
+    const newAlerts: Record<number, boolean> = {};
+    enriched.forEach((gericht) => {
+      newAlerts[gericht.id] = false;
+    });
+
     setGerichte(enriched);
+    setAlerts(newAlerts);
     setLoading(false);
   };
 
@@ -147,28 +155,6 @@ function HeuteContent() {
     setRefreshing(true);
     await fetchGerichte();
     setRefreshing(false);
-  };
-
-  const handleToggleFavorite = (gerichtId: number) => {
-    const isActive = favorites[gerichtId];
-    if (!isActive) {
-      setFavorites((prev) => ({ ...prev, [gerichtId]: true }));
-    } else {
-      Alert.alert(
-        'Favorit entfernen',
-        'Möchtest du dieses Gericht wirklich aus deinen Favoriten löschen?',
-        [
-          { text: 'Abbrechen', style: 'cancel' },
-          {
-            text: 'Entfernen',
-            style: 'destructive',
-            onPress: () => {
-              setFavorites((prev) => ({ ...prev, [gerichtId]: false }));
-            },
-          },
-        ]
-      );
-    }
   };
 
   const handleToggleAlert = (gerichtId: number) => {
@@ -227,9 +213,9 @@ function HeuteContent() {
                   bewertungen={gerichtBewertungen}
                   tags={gericht.tags}
                   preis={parseFloat(gericht.preis)}
-                  isFavorite={favorites[gericht.id] || false}
+                  isFavorite={isFavorite(gericht.name)} // ✅ Favorit aus Context
                   isAlert={alerts[gericht.id] || false}
-                  onFavoritePress={() => handleToggleFavorite(gericht.id)}
+                  onFavoritePress={() => toggleFavorite(gericht.id, gericht.name)} // ✅ Favorit schalten
                   onAlertPress={() => handleToggleAlert(gericht.id)}
                 />
               </TouchableOpacity>

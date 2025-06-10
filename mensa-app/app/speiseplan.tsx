@@ -4,25 +4,25 @@ import {
   Text,
   StyleSheet,
   Dimensions,
-  TouchableOpacity,
-  Platform,
   ActivityIndicator,
   Alert,
   FlatList,
+  Platform,
   UIManager,
 } from 'react-native';
-import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
-import DateTimePicker from '@react-native-community/datetimepicker';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '../constants/Colors';
 import { useColorScheme } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { addDays, startOfWeek, format, isSameDay } from 'date-fns';
 import * as Haptics from 'expo-haptics';
 import * as Animatable from 'react-native-animatable';
 import { supabase } from '../constants/supabase';
 import { generateMetaData } from '../hooks/dataSync';
 import Card from '../components/ui/card';
 import SpeiseplanPDFExport from '../components/pdfExport';
+import WeekSelector from '../components/speiseplan_heute/weekSelector';
+import { useFavorites } from '../components/speiseplan_heute/favoritesContext';
+
+import { addDays, format } from 'date-fns';
 
 const screenWidth = Dimensions.get('window').width;
 
@@ -45,11 +45,7 @@ interface Bewertung {
 }
 
 export default function SpeiseplanScreen() {
-  return (
-    <SafeAreaProvider>
-      <InnerSpeiseplanScreen />
-    </SafeAreaProvider>
-  );
+  return <InnerSpeiseplanScreen />;
 }
 
 function InnerSpeiseplanScreen() {
@@ -59,18 +55,15 @@ function InnerSpeiseplanScreen() {
   const [bewertungen, setBewertungen] = useState<Bewertung[]>([]);
   const [loading, setLoading] = useState(true);
   const [showDatePicker, setShowDatePicker] = useState(false);
-  const [favorites, setFavorites] = useState<Record<number, boolean>>({});
   const [alerts, setAlerts] = useState<Record<number, boolean>>({});
+
+  const { isFavorite, toggleFavorite } = useFavorites(); // ✅ Kontext-Hook
 
   useEffect(() => {
     if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
       UIManager.setLayoutAnimationEnabledExperimental(true);
     }
   }, []);
-
-  const startOfCurrentWeek = startOfWeek(selectedDate, { weekStartsOn: 1 });
-  const daysOfWeek = Array.from({ length: 5 }, (_, i) => addDays(startOfCurrentWeek, i));
-  const weekLabel = `${format(daysOfWeek[0], 'dd.MM.yyyy')} - ${format(daysOfWeek[4], 'dd.MM.yyyy')}`;
 
   const fetchDishes = async (date: Date) => {
     try {
@@ -109,34 +102,24 @@ function InnerSpeiseplanScreen() {
           gericht_name: b.gerichte.name,
         }));
 
-      return { gerichte, bewertungen };
+      const newAlerts: Record<number, boolean> = {};
+      gerichte.forEach((dish) => {
+        if (newAlerts[dish.id] === undefined) newAlerts[dish.id] = false;
+      });
+
+      setGerichte(gerichte);
+      setBewertungen(bewertungen);
+      setAlerts(newAlerts);
+      setLoading(false);
     } catch (error) {
       console.error('Fehler:', error);
       Alert.alert('Fehler', 'Ein unerwarteter Fehler ist aufgetreten');
-      return { gerichte: [], bewertungen: [] };
+      setLoading(false);
     }
   };
 
   useEffect(() => {
-    const loadDishes = async () => {
-      const { gerichte, bewertungen } = await fetchDishes(selectedDate);
-      setGerichte(gerichte);
-      setBewertungen(bewertungen);
-
-      const newFavorites = { ...favorites };
-      const newAlerts = { ...alerts };
-
-      gerichte.forEach((dish) => {
-        if (newFavorites[dish.id] === undefined) newFavorites[dish.id] = false;
-        if (newAlerts[dish.id] === undefined) newAlerts[dish.id] = false;
-      });
-
-      setFavorites(newFavorites);
-      setAlerts(newAlerts);
-      setLoading(false);
-    };
-
-    loadDishes();
+    fetchDishes(selectedDate);
   }, [selectedDate]);
 
   const handleDateChange = (event: any, date?: Date) => {
@@ -148,16 +131,10 @@ function InnerSpeiseplanScreen() {
     setShowDatePicker(false);
   };
 
-  const openDatePicker = () => setShowDatePicker(true);
-
   const changeWeek = (direction: 'prev' | 'next') => {
     const newDate = addDays(selectedDate, direction === 'next' ? 7 : -7);
     setSelectedDate(newDate);
     Haptics.selectionAsync().catch(() => {});
-  };
-
-  const handleToggleFavorite = (id: number) => {
-    setFavorites((prev) => ({ ...prev, [id]: !prev[id] }));
   };
 
   const handleToggleAlert = (id: number) => {
@@ -168,103 +145,62 @@ function InnerSpeiseplanScreen() {
     <SafeAreaView style={[styles.container, { backgroundColor: Colors[theme].background }]}>
       <Text style={[styles.title, { color: Colors[theme].accent1 }]}>Speiseplan</Text>
 
-      <View style={styles.weekHeader}>
-        <TouchableOpacity onPress={() => changeWeek('prev')}>
-          <Ionicons name="chevron-back" size={24} color={Colors[theme].text} />
-        </TouchableOpacity>
-        <TouchableOpacity onPress={openDatePicker}>
-          <Text style={[styles.weekText, { color: Colors[theme].text }]}>{weekLabel}</Text>
-        </TouchableOpacity>
-        <TouchableOpacity onPress={() => changeWeek('next')}>
-          <Ionicons name="chevron-forward" size={24} color={Colors[theme].text} />
-        </TouchableOpacity>
-      </View>
-
-      <View style={styles.dayRow}>
-        {daysOfWeek.map((day) => (
-          <TouchableOpacity
-            key={day.toISOString()}
-            onPress={() => setSelectedDate(day)}
-            style={[
-              styles.dayButton,
-              {
-                backgroundColor: isSameDay(day, selectedDate)
-                  ? Colors[theme].accent1
-                  : Colors[theme].surface,
-              },
-            ]}
-          >
-            <Text style={{ color: isSameDay(day, selectedDate) ? '#fff' : Colors[theme].text, fontWeight: '600' }}>
-              {format(day, 'EE')}
-            </Text>
-            <Text style={{ color: isSameDay(day, selectedDate) ? '#fff' : Colors[theme].text, fontSize: 12 }}>
-              {format(day, 'dd.MM')}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-
-      {showDatePicker && Platform.OS === 'android' && (
-        <DateTimePicker
-          value={selectedDate}
-          mode="date"
-          display="default"
-          onChange={handleDateChange}
-        />
-      )}
+      <WeekSelector
+        selectedDate={selectedDate}
+        onSelectDate={setSelectedDate}
+        theme={theme}
+        showDatePicker={showDatePicker}
+        setShowDatePicker={setShowDatePicker}
+        changeWeek={changeWeek}
+        handleDateChange={handleDateChange}
+      />
 
       {loading ? (
         <ActivityIndicator size="large" color={Colors[theme].accent1} />
       ) : gerichte.length === 0 ? (
         <View style={styles.emptyContainer}>
-          <Ionicons name="fast-food-outline" size={60} color={Colors[theme].text} />
           <Text style={[styles.emptyText, { color: Colors[theme].text }]}>
             Keine Gerichte für diesen Tag gefunden
           </Text>
         </View>
       ) : (
-        <>
-          <FlatList
-            data={gerichte}
-            keyExtractor={(item) => item.id.toString()}
-            renderItem={({ item, index }) => {
-              const gerichtBewertungen = bewertungen.filter((b) => b.gericht_name === item.name);
+        <FlatList
+          data={gerichte}
+          keyExtractor={(item) => item.id.toString()}
+          renderItem={({ item, index }) => {
+            const gerichtBewertungen = bewertungen.filter((b) => b.gericht_name === item.name);
 
-              return (
-                <Animatable.View
-                  animation="fadeInUp"
-                  duration={600}
-                  delay={index * 100}
-                  style={styles.cardContainer}
-                >
-                  <Card
-                    name={item.name}
-                    anzeigename={item.anzeigename}
-                    beschreibung={item.beschreibung}
-                    bild_url={item.bild_url}
-                    kategorie={item.kategorie || ''}
-                    bewertungen={gerichtBewertungen}
-                    tags={item.tags}
-                    preis={parseFloat(item.preis)}
-                    isFavorite={favorites[item.id]}
-                    isAlert={alerts[item.id]}
-                    onFavoritePress={() => handleToggleFavorite(item.id)}
-                    onAlertPress={() => handleToggleAlert(item.id)}
-                  />
-                </Animatable.View>
-              );
-            }}
-          />
-
-          <View style={styles.exportButtonContainer}>
-            <SpeiseplanPDFExport wochengerichte={gerichte} />
-          </View>
-        </>
+            return (
+              <Animatable.View
+                animation="fadeInUp"
+                duration={600}
+                delay={index * 100}
+                style={styles.cardContainer}
+              >
+                <Card
+                  name={item.name}
+                  anzeigename={item.anzeigename}
+                  beschreibung={item.beschreibung}
+                  bild_url={item.bild_url}
+                  kategorie={item.kategorie || ''}
+                  bewertungen={gerichtBewertungen}
+                  tags={item.tags}
+                  preis={parseFloat(item.preis)}
+                  isFavorite={isFavorite(item.name)} // ✅ direkt aus Context
+                  isAlert={alerts[item.id]}
+                  onFavoritePress={() => toggleFavorite(item.id, item.name)} // ✅ global verwaltet
+                  onAlertPress={() => handleToggleAlert(item.id)}
+                />
+              </Animatable.View>
+            );
+          }}
+        />
       )}
+
+      <SpeiseplanPDFExport selectedDate={selectedDate} />
     </SafeAreaView>
   );
 }
-
 
 const styles = StyleSheet.create({
   container: {
@@ -280,28 +216,6 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 1.5,
   },
-  weekHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  weekText: {
-    fontSize: 16,
-    fontWeight: '500',
-  },
-  dayRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 16,
-  },
-  dayButton: {
-    paddingVertical: 6,
-    paddingHorizontal: 8,
-    borderRadius: 6,
-    alignItems: 'center',
-    width: 56,
-  },
   cardContainer: {
     marginBottom: 16,
   },
@@ -316,10 +230,4 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 20,
   },
-  exportButtonContainer: {
-  marginTop: 16,
-  marginBottom: 32,
-  alignItems: 'center',
-},
-
 });

@@ -18,6 +18,7 @@ export const Colors = {
     accent1: '#63a53d', // Benutzer Login
     accent2: '#fb8d30', // Registrierung
     accent3: '#fdc128', // Admin Login
+    buttonText: '#ffffff', // HINZUGEFÜGT
   },
   dark: {
     background: '#121212',
@@ -35,5 +36,6 @@ export const Colors = {
     accent1: '#63a53d', // Benutzer Login
     accent2: '#fb8d30', // Registrierung
     accent3: '#fdc128', // Admin Login
+    buttonText: '#ffffff', // HINZUGEFÜGT
   },
 };
