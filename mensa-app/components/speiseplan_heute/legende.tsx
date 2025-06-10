@@ -36,17 +36,17 @@ const TAGS = [
     color: '#FFF59D',
   },
   {
-  key: 'glutenfrei',
-  label: 'Glutenfrei',
-  icon: <Ionicons name="ban" size={14} color="#000" />,
-  color: '#FFE082',
-},
-{
-  key: 'scharf',
-  label: 'Scharf',
-  icon: <Ionicons name="flame" size={14} color="#000" />,
-  color: '#EF9A9A',
-},
+    key: 'glutenfrei',
+    label: 'Glutenfrei',
+    icon: <Ionicons name="ban" size={14} color="#000" />,
+    color: '#FFE082',
+  },
+  {
+    key: 'scharf',
+    label: 'Scharf',
+    icon: <MaterialCommunityIcons name="chili-hot" size={14} color="#000" />, // <- geändert
+    color: '#EF9A9A',
+  },
   {
     key: 'fleischhaltig',
     label: 'Fleischhaltig',

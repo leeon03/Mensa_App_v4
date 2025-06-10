@@ -59,7 +59,7 @@ const TAGS = {
   },
   scharf: {
     label: 'Scharf',
-    icon: <Ionicons name="flame" size={14} color="#000" />,
+    icon: <MaterialCommunityIcons name="chili-hot" size={14} color="#000" />, // <--- hier geändert
     color: '#EF9A9A',
   },
   fleischhaltig: {
@@ -219,7 +219,6 @@ const Card: React.FC<CardProps> = ({
           })}
         </View>
         )}
-
 
         <View style={styles.bottomRow}>
           <View style={styles.ratingContainer}>{renderStars()}</View>
