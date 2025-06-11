@@ -1,35 +1,18 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  FlatList,
-  TouchableOpacity,
-  LayoutAnimation,
-  Platform,
-  UIManager,
-  Alert,
+  ScrollView,
+  ActivityIndicator,
 } from 'react-native';
 import { useColorScheme } from 'react-native';
 import { Colors } from '../constants/Colors';
-import { Ionicons } from '@expo/vector-icons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as Animatable from 'react-native-animatable';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
-import { Audio } from 'expo-av';
-import * as Haptics from 'expo-haptics';
-
-if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
-  UIManager.setLayoutAnimationEnabledExperimental(true);
-}
-
-const STORAGE_KEY = 'user_preferences';
-
-const mockFavoritesData = [
-  { id: 1, name: 'Spaghetti Bolognese', tags: ['beliebt'] },
-  { id: 2, name: 'Veganes Curry', tags: ['vegan', 'scharf'] },
-  { id: 3, name: 'Schnitzel mit Pommes', tags: [] },
-];
+import { useFavorites } from '../components/speiseplan_heute/favoritesContext';
+import { supabase } from '../constants/supabase';
+import Card from '../components/ui/card'; // Deine Card-Komponente
+import Legende from '../components/speiseplan_heute/legende';
 
 export default function FavoritesScreen() {
   return (
@@ -41,200 +24,78 @@ export default function FavoritesScreen() {
 
 function FavoritesInner() {
   const theme = useColorScheme() || 'light';
+  const themeColor = Colors[theme];
+  const { favorites, toggleFavorite, isFavorite } = useFavorites();
 
-  const [favorites, setFavorites] = useState<number[]>([]);
-  const [alerts, setAlerts] = useState<Record<number, boolean>>({});
-  const [showLegend, setShowLegend] = useState(false);
+  const [gerichte, setGerichte] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const loadPreferences = async () => {
-      const data = await AsyncStorage.getItem(STORAGE_KEY);
-      if (data) {
-        const parsed = JSON.parse(data);
-        setFavorites(parsed.favorites || []);
-        setAlerts(parsed.alerts || {});
-      } else {
-        const initialFavorites = mockFavoritesData.map((g) => g.id);
-        setFavorites(initialFavorites);
-        setAlerts({});
+    const loadFavoritesFromDB = async () => {
+      setLoading(true);
+
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      if (!session?.user) {
+        setGerichte([]);
+        setLoading(false);
+        return;
       }
+
+      const { data, error } = await supabase
+        .from('favorites')
+        .select('gerichte (id, name, anzeigename, beschreibung, tags, preis, bild_url, kategorie)')
+        .eq('user_id', session.user.id);
+
+      if (error) {
+        console.error('Fehler beim Laden der Favoriten:', error);
+        setGerichte([]);
+        setLoading(false);
+        return;
+      }
+
+      const gefiltert = data.map((f) => f.gerichte).filter((g) => g !== null);
+      setGerichte(gefiltert);
+      setLoading(false);
     };
-    loadPreferences();
-  }, []);
 
-  const playSound = async (file: any) => {
-  const { sound } = await Audio.Sound.createAsync(file);
-  await sound.playAsync();
-};
-
-
-  const triggerHaptic = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-  };
-
-  const savePreferences = async (
-    updatedFavorites: number[],
-    updatedAlerts: Record<number, boolean>
-  ) => {
-    await AsyncStorage.setItem(
-      STORAGE_KEY,
-      JSON.stringify({ favorites: updatedFavorites, alerts: updatedAlerts })
-    );
-  };
-
-  const toggleAlert = async (id: number) => {
-  triggerHaptic();
-  const isNowActive = !alerts[id];
-  const updated = { ...alerts, [id]: isNowActive };
-  setAlerts(updated);
-  savePreferences(favorites, updated);
-
-  if (isNowActive) {
-    await playSound(require('../assets/sounds/glocke.wav'));
-  }
-};
-
-const removeFromFavorites = (id: number) => {
-  Alert.alert(
-    'Favorit entfernen',
-    'Möchtest du dieses Gericht wirklich aus deinen Favoriten löschen?',
-    [
-      { text: 'Abbrechen', style: 'cancel' },
-      {
-        text: 'Entfernen',
-        style: 'destructive',
-        onPress: async () => {
-          triggerHaptic();
-          const updatedFavorites = favorites.filter((fid) => fid !== id);
-          const updatedAlerts = { ...alerts };
-          delete updatedAlerts[id];
-          setFavorites(updatedFavorites);
-          setAlerts(updatedAlerts);
-          savePreferences(updatedFavorites, updatedAlerts);
-        },
-      },
-    ]
-  );
-};
-
-  const toggleLegend = () => {
-    LayoutAnimation.easeInEaseOut();
-    setShowLegend(!showLegend);
-  };
-
-  const renderTags = (tags: string[]) => (
-    <View style={styles.tagRow}>
-      {tags.includes('vegan') && <Text style={styles.tag}>🌱</Text>}
-      {tags.includes('vegetarisch') && <Text style={styles.tag}>🥦</Text>}
-      {tags.includes('scharf') && <Text style={styles.tag}>🌶️</Text>}
-      {tags.includes('beliebt') && <Text style={styles.tag}>🔥</Text>}
-    </View>
-  );
-
-  const visibleFavorites = mockFavoritesData.filter((g) => favorites.includes(g.id));
+    loadFavoritesFromDB();
+  }, [favorites]);
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: Colors[theme].background }]}>
+    <SafeAreaView style={[styles.container, { backgroundColor: themeColor.background }]}>
       <Text style={styles.title}>Deine Favoriten</Text>
+      <Legende />
 
-      <TouchableOpacity onPress={toggleLegend} style={styles.legendToggle}>
-        <Text style={[styles.legendeTitle, { color: Colors[theme].text }]}>
-          Legende {showLegend ? '▲' : '▼'}
-        </Text>
-      </TouchableOpacity>
-
-      {showLegend && (
-        <View style={[styles.legendeContainer, { backgroundColor: Colors[theme].surface }]}>
-          <View style={styles.legendeChip}><Text style={styles.chipText}>🌱 Vegan</Text></View>
-          <View style={styles.legendeChip}><Text style={styles.chipText}>🥦 Vegetarisch</Text></View>
-          <View style={styles.legendeChip}><Text style={styles.chipText}>🌶️ Scharf</Text></View>
-          <View style={styles.legendeChip}><Text style={styles.chipText}>🔥 Beliebt</Text></View>
-          <View style={styles.legendeChip}>
-            <Ionicons name="heart" size={14} color="red" style={{ marginRight: 4 }} />
-            <Text style={styles.chipText}>Favorit</Text>
-          </View>
-          <View style={styles.legendeChip}>
-            <Ionicons name="notifications" size={14} color="#007AFF" style={{ marginRight: 4 }} />
-            <Text style={styles.chipText}>Erinnerung</Text>
-          </View>
-        </View>
-      )}
-
-      {visibleFavorites.length === 0 ? (
-        <Text style={{ textAlign: 'center', marginTop: 20, color: Colors[theme].text }}>
+      {loading ? (
+        <ActivityIndicator size="large" color={themeColor.accent1} />
+      ) : gerichte.length === 0 ? (
+        <Text style={{ textAlign: 'center', marginTop: 20, color: themeColor.text }}>
           Du hast noch keine Favoriten gespeichert.
         </Text>
       ) : (
-        <FlatList
-          data={visibleFavorites}
-          keyExtractor={(item) => item.id.toString()}
-          renderItem={({ item, index }) => (
-            <Animatable.View
-              animation="fadeInLeft"
-              duration={500}
-              delay={index * 100}
-              useNativeDriver
-            >
-              <View style={[styles.item, { backgroundColor: Colors[theme].card }]}>
-                <View style={styles.itemHeader}>
-                  <Animatable.View animation="bounceIn">
-                    <TouchableOpacity
-                      onPress={() => {
-                      triggerHaptic();
-                      removeFromFavorites(item.id);
-            }}
->
-
-                      <Ionicons name="heart" size={20} color="red" />
-                    </TouchableOpacity>
-                  </Animatable.View>
-                  <Text style={[styles.itemText, { color: Colors[theme].text }]}>{item.name}</Text>
-                  <Animatable.View animation="pulse" duration={300}>
-                    <TouchableOpacity onPress={() => toggleAlert(item.id)}>
-                      <Ionicons
-                        name={alerts[item.id] ? 'notifications' : 'notifications-outline'}
-                        size={20}
-                        color={alerts[item.id] ? '#007AFF' : Colors[theme].icon}
-                      />
-                    </TouchableOpacity>
-                  </Animatable.View>
-                </View>
-                {renderTags(item.tags)}
-              </View>
-            </Animatable.View>
-          )}
-        />
+        <ScrollView>
+          {gerichte.map((gericht) => (
+            <Card
+              key={gericht.id}
+              name={gericht.name}
+              anzeigename={gericht.anzeigename}
+              beschreibung={gericht.beschreibung}
+              bild_url={gericht.bild_url}
+              kategorie={gericht.kategorie || ''}
+              bewertungen={[]} // Optional: Bewertungen kannst du später ergänzen
+              tags={gericht.tags || []}
+              preis={parseFloat(gericht.preis)}
+              isFavorite={isFavorite(gericht.name)}
+              isAlert={false} // Optional: Alert-Feature kannst du später hinzufügen
+              onFavoritePress={() => toggleFavorite(gericht.id, gericht.name)}
+              onAlertPress={() => {}} // Noch nicht aktiv
+            />
+          ))}
+        </ScrollView>
       )}
-
-      <TouchableOpacity
-        onPress={() => {
-          Alert.alert(
-            'AsyncStorage löschen',
-            'Willst du wirklich alle gespeicherten Favoriten und Erinnerungen löschen?',
-            [
-              { text: 'Abbrechen', style: 'cancel' },
-              {
-                text: 'Löschen',
-                style: 'destructive',
-                onPress: async () => {
-                  await AsyncStorage.removeItem(STORAGE_KEY);
-                  setFavorites([]);
-                  setAlerts({});
-                },
-              },
-            ]
-          );
-        }}
-        style={{
-          marginTop: 24,
-          padding: 12,
-          backgroundColor: '#ddd',
-          borderRadius: 10,
-          alignSelf: 'center',
-        }}
-      >
-        <Text style={{ color: '#000', fontWeight: 'bold' }}>🗑️ AsyncStorage zurücksetzen</Text>
-      </TouchableOpacity>
     </SafeAreaView>
   );
 }
@@ -242,72 +103,14 @@ const removeFromFavorites = (id: number) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 24,
+    padding: 16,
   },
   title: {
-    fontSize: 36,
-    fontWeight: '900',
+    fontSize: 32,
+    fontWeight: '800',
     textAlign: 'center',
-    marginBottom: 24,
+    marginBottom: 20,
     textTransform: 'uppercase',
-    letterSpacing: 1.5,
-    textShadowColor: 'rgba(0,0,0,0.15)',
-    textShadowOffset: { width: 1, height: 2 },
-    textShadowRadius: 3,
     color: 'red',
-  },
-  legendToggle: {
-    alignSelf: 'flex-start',
-    paddingVertical: 6,
-  },
-  legendeTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 4,
-  },
-  legendeContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'flex-start',
-    padding: 10,
-    borderRadius: 12,
-    marginBottom: 12,
-  },
-  legendeChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#f0f0f0',
-    borderRadius: 20,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    margin: 4,
-  },
-  chipText: {
-    fontSize: 13,
-    color: '#333',
-  },
-  item: {
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 12,
-  },
-  itemHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 12,
-  },
-  itemText: {
-    flex: 1,
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  tagRow: {
-    flexDirection: 'row',
-    marginTop: 8,
-  },
-  tag: {
-    fontSize: 16,
-    marginRight: 6,
   },
 });

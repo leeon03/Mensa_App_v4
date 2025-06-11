@@ -18,7 +18,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import { supabase } from '../constants/supabase';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
-import Avatar from '../components/Avatar'; // 🔁 Import Avatar-Komponente
+import Avatar from '../components/Avatar';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -49,6 +49,7 @@ function ProfileContent() {
   const [userAvatar, setUserAvatar] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [repeatPassword, setRepeatPassword] = useState('');
+  const [favoritesCount, setFavoritesCount] = useState(0);
 
   useEffect(() => {
     const loadUserData = async () => {
@@ -73,6 +74,15 @@ function ProfileContent() {
 
       if (!profileError && profile?.avatar_url) {
         setUserAvatar(profile.avatar_url);
+      }
+
+      const { count, error: favError } = await supabase
+        .from('favorites')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', user.id);
+
+      if (!favError) {
+        setFavoritesCount(count || 0);
       }
     };
 
@@ -168,7 +178,7 @@ function ProfileContent() {
 
       <View style={[styles.infoBox, { backgroundColor: Colors[theme].card }]}>
         <Text style={[styles.infoText, { color: Colors[theme].text }]}>Mitglied seit: {createdAt}</Text>
-        <Text style={[styles.infoText, { color: Colors[theme].text }]}>Favorisierte Gerichte: 12</Text>
+        <Text style={[styles.infoText, { color: Colors[theme].text }]}>Favorisierte Gerichte: {favoritesCount}</Text>
       </View>
 
       <TouchableOpacity onPress={toggleEdit} style={styles.button}>
