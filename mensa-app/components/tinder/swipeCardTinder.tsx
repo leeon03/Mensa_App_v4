@@ -1,3 +1,4 @@
+l
 import React from 'react';
 import { Animated, Text, View, StyleSheet, Image, TouchableOpacity } from 'react-native';
 import { Colors } from '../../constants/Colors';

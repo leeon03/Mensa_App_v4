@@ -9,6 +9,7 @@ import {
   FlatList,
   Platform,
   UIManager,
+  RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '../constants/Colors';
@@ -22,7 +23,6 @@ import SpeiseplanPDFExport from '../components/pdfExport';
 import WeekSelector from '../components/speiseplan_heute/weekSelector';
 import { useFavorites } from '../components/speiseplan_heute/favoritesContext';
 import Legende from '../components/speiseplan_heute/legende';
-
 import { addDays, format } from 'date-fns';
 
 const screenWidth = Dimensions.get('window').width;
@@ -55,6 +55,7 @@ function InnerSpeiseplanScreen() {
   const [gerichte, setGerichte] = useState<Dish[]>([]);
   const [bewertungen, setBewertungen] = useState<Bewertung[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [alerts, setAlerts] = useState<Record<number, boolean>>({});
 
@@ -68,9 +69,7 @@ function InnerSpeiseplanScreen() {
 
   const fetchDishes = async (date: Date) => {
     try {
-      setLoading(true);
       const dateString = format(date, 'yyyy-MM-dd');
-
       const [gerichteRes, bewertungenRes] = await Promise.all([
         supabase.from('gerichte').select('*').eq('datum', dateString),
         supabase
@@ -111,15 +110,17 @@ function InnerSpeiseplanScreen() {
       setGerichte(enriched);
       setBewertungen(bewertungen);
       setAlerts(newAlerts);
-      setLoading(false);
     } catch (error) {
       console.error('Fehler:', error);
       Alert.alert('Fehler', 'Ein unerwarteter Fehler ist aufgetreten');
+    } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
 
   useEffect(() => {
+    setLoading(true);
     fetchDishes(selectedDate);
   }, [selectedDate]);
 
@@ -142,9 +143,21 @@ function InnerSpeiseplanScreen() {
     setAlerts((prev) => ({ ...prev, [id]: !prev[id] }));
   };
 
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await fetchDishes(selectedDate);
+  };
+
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: Colors[theme].background }]}>
-      <Text style={[styles.title, { color: Colors[theme].accent1 }]}>Speiseplan</Text>
+      <Animatable.Text
+        animation="fadeInDown"
+        duration={700}
+        delay={100}
+        style={[styles.title, { color: Colors[theme].accent1 }]}
+      >
+        Speiseplan
+      </Animatable.Text>
 
       <WeekSelector
         selectedDate={selectedDate}
@@ -170,6 +183,9 @@ function InnerSpeiseplanScreen() {
         <FlatList
           data={gerichte}
           keyExtractor={(item) => item.id.toString()}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
+          }
           renderItem={({ item, index }) => {
             const gerichtBewertungen = bewertungen.filter((b) => b.gericht_name === item.name);
 
