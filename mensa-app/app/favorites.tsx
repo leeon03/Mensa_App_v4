@@ -1,17 +1,18 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   ActivityIndicator,
+  Animated,
 } from 'react-native';
 import { useColorScheme } from 'react-native';
 import { Colors } from '../constants/Colors';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { useFavorites } from '../components/speiseplan_heute/favoritesContext';
 import { supabase } from '../constants/supabase';
-import Card from '../components/ui/card'; // Deine Card-Komponente
+import Card from '../components/ui/card';
 import Legende from '../components/speiseplan_heute/legende';
 
 export default function FavoritesScreen() {
@@ -25,10 +26,11 @@ export default function FavoritesScreen() {
 function FavoritesInner() {
   const theme = useColorScheme() || 'light';
   const themeColor = Colors[theme];
-  const { favorites, toggleFavorite, isFavorite } = useFavorites();
+  const { toggleFavorite, isFavorite } = useFavorites();
 
   const [gerichte, setGerichte] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const animationRefs = useRef<Record<string, Animated.Value>>({});
 
   useEffect(() => {
     const loadFavoritesFromDB = async () => {
@@ -57,12 +59,38 @@ function FavoritesInner() {
       }
 
       const gefiltert = data.map((f) => f.gerichte).filter((g) => g !== null);
+
+      // Animationswerte vorbereiten
+      gefiltert.forEach((g) => {
+        const key = g.name.trim().toLowerCase();
+        animationRefs.current[key] = new Animated.Value(1);
+      });
+
       setGerichte(gefiltert);
       setLoading(false);
     };
 
     loadFavoritesFromDB();
-  }, [favorites]);
+  }, []);
+
+  const handleRemove = async (gerichtId: number, gerichtName: string) => {
+    const key = gerichtName.trim().toLowerCase();
+    const anim = animationRefs.current[key];
+
+    const confirmed = await toggleFavorite(gerichtId, gerichtName);
+
+    if (confirmed && anim) {
+      Animated.timing(anim, {
+        toValue: 0,
+        duration: 300,
+        useNativeDriver: true,
+      }).start(() => {
+        setGerichte((prev) =>
+          prev.filter((g) => g.name.trim().toLowerCase() !== key)
+        );
+      });
+    }
+  };
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: themeColor.background }]}>
@@ -77,23 +105,39 @@ function FavoritesInner() {
         </Text>
       ) : (
         <ScrollView>
-          {gerichte.map((gericht) => (
-            <Card
-              key={gericht.id}
-              name={gericht.name}
-              anzeigename={gericht.anzeigename}
-              beschreibung={gericht.beschreibung}
-              bild_url={gericht.bild_url}
-              kategorie={gericht.kategorie || ''}
-              bewertungen={[]} // Optional: Bewertungen kannst du später ergänzen
-              tags={gericht.tags || []}
-              preis={parseFloat(gericht.preis)}
-              isFavorite={isFavorite(gericht.name)}
-              isAlert={false} // Optional: Alert-Feature kannst du später hinzufügen
-              onFavoritePress={() => toggleFavorite(gericht.id, gericht.name)}
-              onAlertPress={() => {}} // Noch nicht aktiv
-            />
-          ))}
+          {gerichte.map((gericht) => {
+            const key = gericht.name.trim().toLowerCase();
+            const opacity = animationRefs.current[key] || new Animated.Value(1);
+            const translateX = opacity.interpolate({
+              inputRange: [0, 1],
+              outputRange: [-200, 0],
+            });
+
+            return (
+              <Animated.View
+                key={gericht.id}
+                style={{
+                  opacity,
+                  transform: [{ translateX }],
+                }}
+              >
+                <Card
+                  name={gericht.name}
+                  anzeigename={gericht.anzeigename}
+                  beschreibung={gericht.beschreibung}
+                  bild_url={gericht.bild_url}
+                  kategorie={gericht.kategorie || ''}
+                  bewertungen={[]}
+                  tags={gericht.tags || []}
+                  preis={parseFloat(gericht.preis)}
+                  isFavorite={isFavorite(gericht.name.trim().toLowerCase())}
+                  isAlert={false}
+                  onFavoritePress={() => handleRemove(gericht.id, gericht.name)}
+                  onAlertPress={() => {}}
+                />
+              </Animated.View>
+            );
+          })}
         </ScrollView>
       )}
     </SafeAreaView>

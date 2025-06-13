@@ -4,7 +4,7 @@ import { Alert } from 'react-native';
 
 interface FavoritesContextType {
   favorites: Record<string, boolean>;
-  toggleFavorite: (gerichtId: number, gerichtName: string) => Promise<void>;
+  toggleFavorite: (gerichtId: number, gerichtName: string) => Promise<boolean>;
   isFavorite: (gerichtName: string) => boolean;
 }
 
@@ -14,58 +14,46 @@ export const FavoritesProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const [favorites, setFavorites] = useState<Record<string, boolean>>({});
   const [userId, setUserId] = useState<string | null>(null);
 
-  // 1. Auth-Status beobachten
+  const normalize = (name: string) => name.trim().toLowerCase();
+
+  const reloadFavorites = async (uid: string) => {
+    const { data, error } = await supabase
+      .from('favorites')
+      .select('gericht_name')
+      .eq('user_id', uid);
+
+    if (error) {
+      console.error('Fehler beim Laden der Favoriten:', error);
+      return;
+    }
+
+    const favMap: Record<string, boolean> = {};
+    for (const fav of data || []) {
+      if (fav.gericht_name) {
+        favMap[normalize(fav.gericht_name)] = true;
+      }
+    }
+    setFavorites(favMap);
+  };
+
   useEffect(() => {
     const fetchUserAndFavorites = async () => {
-      const {
-        data: { session },
-        error,
-      } = await supabase.auth.getSession();
-
-      if (error || !session?.user) {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        setUserId(session.user.id);
+        await reloadFavorites(session.user.id);
+      } else {
         setUserId(null);
-        return;
+        setFavorites({});
       }
-
-      const user = session.user;
-      setUserId(user.id);
-
-      const { data, error: favError } = await supabase
-        .from('favorites')
-        .select('gericht_name')
-        .eq('user_id', user.id);
-
-      if (favError) {
-        console.error('Fehler beim Laden der Favoriten:', favError);
-        return;
-      }
-
-      const favMap: Record<string, boolean> = {};
-      for (const fav of data || []) {
-        favMap[fav.gericht_name] = true;
-      }
-      setFavorites(favMap);
     };
 
     fetchUserAndFavorites();
 
-    // 2. Bei Login/Logout neu laden
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session?.user) {
         setUserId(session.user.id);
-        // Favoriten neu laden
-        supabase
-          .from('favorites')
-          .select('gericht_name')
-          .eq('user_id', session.user.id)
-          .then(({ data, error }) => {
-            if (error) return;
-            const favMap: Record<string, boolean> = {};
-            for (const fav of data || []) {
-              favMap[fav.gericht_name] = true;
-            }
-            setFavorites(favMap);
-          });
+        reloadFavorites(session.user.id);
       } else {
         setUserId(null);
         setFavorites({});
@@ -77,15 +65,17 @@ export const FavoritesProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     };
   }, []);
 
-  const toggleFavorite = async (gerichtId: number, gerichtName: string) => {
+  const toggleFavorite = async (gerichtId: number, gerichtName: string): Promise<boolean> => {
     if (!userId) {
       Alert.alert('Nicht eingeloggt', 'Bitte melde dich an.');
-      return;
+      return false;
     }
 
-    const isFav = favorites[gerichtName] || false;
+    const nameKey = normalize(gerichtName);
+    const isFav = favorites[nameKey] || false;
 
     if (!isFav) {
+      // Gericht hinzufügen
       const { data: existing, error: checkError } = await supabase
         .from('favorites')
         .select('*')
@@ -103,17 +93,21 @@ export const FavoritesProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         ]);
 
         if (!insertError) {
-          setFavorites((prev) => ({ ...prev, [gerichtName]: true }));
-        } else {
-          console.error('Fehler beim Hinzufügen:', insertError);
+          await reloadFavorites(userId);
+          return true;
         }
       }
-    } else {
+
+      return false;
+    }
+
+    // Gericht entfernen mit Alert
+    return new Promise<boolean>((resolve) => {
       Alert.alert(
         'Favorit entfernen',
         'Möchtest du dieses Gericht wirklich aus deinen Favoriten löschen?',
         [
-          { text: 'Abbrechen', style: 'cancel' },
+          { text: 'Abbrechen', style: 'cancel', onPress: () => resolve(false) },
           {
             text: 'Entfernen',
             style: 'destructive',
@@ -125,20 +119,22 @@ export const FavoritesProvider: React.FC<{ children: React.ReactNode }> = ({ chi
                 .eq('gericht_name', gerichtName);
 
               if (!deleteError) {
-                setFavorites((prev) => ({ ...prev, [gerichtName]: false }));
+                await reloadFavorites(userId);
+                resolve(true);
               } else {
-                console.error('Fehler beim Entfernen:', deleteError);
+                console.error('Fehler beim Löschen:', deleteError);
                 Alert.alert('Fehler', 'Favorit konnte nicht gelöscht werden.');
+                resolve(false);
               }
             },
           },
         ]
       );
-    }
+    });
   };
 
   const isFavorite = (gerichtName: string) => {
-    return favorites[gerichtName] || false;
+    return favorites[normalize(gerichtName)] || false;
   };
 
   return (

@@ -18,6 +18,7 @@ import { supabase } from '../constants/supabase';
 import { MatchModal } from '../components/tinder/matchModal';
 import IntroModal from '../components/tinder/introModal';
 import SwipeCard from '../components/tinder/swipeCardTinder';
+import { useFavorites } from '../components/speiseplan_heute/favoritesContext'; // NEU
 
 const screenWidth = Dimensions.get('window').width;
 
@@ -44,12 +45,14 @@ function SwipeScreen() {
   const theme = useColorScheme() || 'light';
   const [gerichte, setGerichte] = useState<Gericht[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [favorites, setFavorites] = useState<number[]>([]);
+  const [favoriteIds, setFavoriteIds] = useState<number[]>([]);
   const [swipeDirection, setSwipeDirection] = useState<'like' | 'dislike' | null>(null);
   const [showMatch, setShowMatch] = useState(false);
   const [introVisible, setIntroVisible] = useState(true);
   const [introStep, setIntroStep] = useState(1);
   const [loading, setLoading] = useState(true);
+
+  const { toggleFavorite } = useFavorites(); // NEU
 
   const position = useRef(new Animated.ValueXY()).current;
   const likeScale = useRef(new Animated.Value(1)).current;
@@ -75,34 +78,39 @@ function SwipeScreen() {
   }, []);
 
   useEffect(() => {
-    const loadGerichte = async () => {
-      const { data, error } = await supabase
-        .from('gerichte')
-        .select('id, name, anzeigename, beschreibung, tags, bild_url');
-
-      if (error) {
-        console.error('Fehler beim Laden der Gerichte:', error.message);
+    const loadData = async () => {
+      setLoading(true);
+      const { data: { session } } = await supabase.auth.getSession();
+      const user = session?.user;
+      if (!user) {
         setLoading(false);
         return;
       }
 
-      if (data && Array.isArray(data)) {
-        const parsed = data.map((g: any) => ({
+      const [gerichteRes, favoritesRes] = await Promise.all([
+        supabase.from('gerichte').select('id, name, anzeigename, beschreibung, tags, bild_url'),
+        supabase.from('favorites').select('gerichte (id)').eq('user_id', user.id),
+      ]);
+
+      const favoriteIDs = favoritesRes.data
+        ?.map((f) => f.gerichte?.id)
+        .filter((id): id is number => typeof id === 'number') || [];
+
+      const gefilterteGerichte = (gerichteRes.data || [])
+        .filter((g: Gericht) => !favoriteIDs.includes(g.id))
+        .map((g: any) => ({
           ...g,
           tags: typeof g.tags === 'string'
             ? g.tags.split(',').map((t: string) => t.trim())
             : Array.isArray(g.tags) ? g.tags : [],
         }));
 
-        setGerichte(parsed);
-      } else {
-        console.warn('Unerwartete Datenstruktur:', data);
-      }
-
+      setFavoriteIds(favoriteIDs);
+      setGerichte(gefilterteGerichte);
       setLoading(false);
     };
 
-    loadGerichte();
+    loadData();
   }, []);
 
   const rotate = position.x.interpolate({
@@ -115,11 +123,27 @@ function SwipeScreen() {
     transform: [...position.getTranslateTransform(), { rotate }],
   };
 
-  const handleSwipe = (direction: 'like' | 'dislike') => {
+  const handleSwipe = async (direction: 'like' | 'dislike') => {
+    const gericht = gerichte[currentIndex];
+    if (!gericht) return;
+
     if (direction === 'like') {
-      setFavorites((prev) => [...prev, gerichte[currentIndex].id]);
-      setShowMatch(true);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user && !favoriteIds.includes(gericht.id)) {
+        // Supabase speichern
+        await supabase.from('favorites').insert({
+          user_id: user.id,
+          gericht_id: gericht.id,
+          gericht_name: gericht.name,
+        });
+
+        // Context aktualisieren → für rotes Herz
+        await toggleFavorite(gericht.id, gericht.name);
+
+        setFavoriteIds((prev) => [...prev, gericht.id]);
+        setShowMatch(true);
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      }
     }
 
     Animated.timing(position, {
@@ -168,12 +192,15 @@ function SwipeScreen() {
             useNativeDriver: false,
           }).start();
           setSwipeDirection(null);
+          Animated.spring(likeScale, { toValue: 1, useNativeDriver: false }).start();
+          Animated.spring(dislikeScale, { toValue: 1, useNativeDriver: false }).start();
         }
       },
     })
   ).current;
 
   const currentGericht = gerichte[currentIndex];
+  const isLight = theme === 'light';
 
   if (loading) {
     return (
@@ -212,21 +239,39 @@ function SwipeScreen() {
 
       <Text style={[styles.header, { color: Colors[theme].accent3 }]}>Essens Tinder</Text>
 
-      <SwipeCard
-        gericht={currentGericht}
-        theme={theme}
-        panHandlers={panResponder.panHandlers}
-        style={swipeCardStyle}
-      />
+      <View style={{ position: 'relative', width: '100%' }}>
+        <SwipeCard
+          gericht={currentGericht}
+          theme={theme}
+          panHandlers={panResponder.panHandlers}
+          style={swipeCardStyle}
+        />
+        {swipeDirection === 'like' && (
+          <View style={styles.tinderLike}>
+            <Text style={styles.tinderLikeText}>LIKE</Text>
+          </View>
+        )}
+        {swipeDirection === 'dislike' && (
+          <View style={styles.tinderNope}>
+            <Text style={styles.tinderNopeText}>NOPE</Text>
+          </View>
+        )}
+      </View>
 
       <View style={styles.buttons}>
         <Animated.View style={{ transform: [{ scale: dislikeScale }] }}>
-          <TouchableOpacity onPress={() => handleSwipe('dislike')} style={styles.iconButton}>
+          <TouchableOpacity
+            onPress={() => handleSwipe('dislike')}
+            style={[styles.iconButton, isLight && { backgroundColor: '#000' }]}
+          >
             <Ionicons name="close" size={36} color="#e74c3c" />
           </TouchableOpacity>
         </Animated.View>
         <Animated.View style={{ transform: [{ scale: likeScale }] }}>
-          <TouchableOpacity onPress={() => handleSwipe('like')} style={styles.iconButton}>
+          <TouchableOpacity
+            onPress={() => handleSwipe('like')}
+            style={[styles.iconButton, isLight && { backgroundColor: '#000' }]}
+          >
             <Ionicons name="heart" size={36} color="#2ecc71" />
           </TouchableOpacity>
         </Animated.View>
@@ -252,9 +297,6 @@ const styles = StyleSheet.create({
     marginTop: 12,
     textTransform: 'uppercase',
     letterSpacing: 1.5,
-    textShadowColor: 'rgba(0,0,0,0.15)',
-    textShadowOffset: { width: 1, height: 2 },
-    textShadowRadius: 3,
   },
   buttons: {
     position: 'absolute',
@@ -265,10 +307,14 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
   },
   iconButton: {
-    backgroundColor: '#fff',
+    backgroundColor: '#f0f0f0',
     padding: 14,
     borderRadius: 50,
     elevation: 5,
+    shadowColor: '#000',
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 3 },
   },
   centered: {
     flex: 1,
@@ -278,5 +324,39 @@ const styles = StyleSheet.create({
   doneText: {
     fontSize: 18,
     fontStyle: 'italic',
+  },
+  tinderLike: {
+    position: 'absolute',
+    top: 40,
+    left: 20,
+    transform: [{ rotate: '-20deg' }],
+    borderWidth: 4,
+    borderColor: '#2ecc71',
+    paddingHorizontal: 20,
+    paddingVertical: 5,
+    borderRadius: 8,
+  },
+  tinderLikeText: {
+    color: '#2ecc71',
+    fontSize: 28,
+    fontWeight: '900',
+    letterSpacing: 2,
+  },
+  tinderNope: {
+    position: 'absolute',
+    top: 40,
+    right: 20,
+    transform: [{ rotate: '20deg' }],
+    borderWidth: 4,
+    borderColor: '#e74c3c',
+    paddingHorizontal: 20,
+    paddingVertical: 5,
+    borderRadius: 8,
+  },
+  tinderNopeText: {
+    color: '#e74c3c',
+    fontSize: 28,
+    fontWeight: '900',
+    letterSpacing: 2,
   },
 });
