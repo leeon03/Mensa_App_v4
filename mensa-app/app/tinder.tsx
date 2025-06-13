@@ -13,12 +13,13 @@ import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../constants/Colors';
 import { useColorScheme } from 'react-native';
 import * as Haptics from 'expo-haptics';
+import * as Animatable from 'react-native-animatable';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '../constants/supabase';
 import { MatchModal } from '../components/tinder/matchModal';
 import IntroModal from '../components/tinder/introModal';
 import SwipeCard from '../components/tinder/swipeCardTinder';
-import { useFavorites } from '../components/speiseplan_heute/favoritesContext'; // NEU
+import { useFavorites } from '../components/speiseplan_heute/favoritesContext';
 
 const screenWidth = Dimensions.get('window').width;
 
@@ -52,7 +53,7 @@ function SwipeScreen() {
   const [introStep, setIntroStep] = useState(1);
   const [loading, setLoading] = useState(true);
 
-  const { toggleFavorite } = useFavorites(); // NEU
+  const { toggleFavorite } = useFavorites();
 
   const position = useRef(new Animated.ValueXY()).current;
   const likeScale = useRef(new Animated.Value(1)).current;
@@ -130,16 +131,13 @@ function SwipeScreen() {
     if (direction === 'like') {
       const { data: { user } } = await supabase.auth.getUser();
       if (user && !favoriteIds.includes(gericht.id)) {
-        // Supabase speichern
         await supabase.from('favorites').insert({
           user_id: user.id,
           gericht_id: gericht.id,
           gericht_name: gericht.name,
         });
 
-        // Context aktualisieren → für rotes Herz
         await toggleFavorite(gericht.id, gericht.name);
-
         setFavoriteIds((prev) => [...prev, gericht.id]);
         setShowMatch(true);
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -237,7 +235,14 @@ function SwipeScreen() {
         onDismiss={handleIntroDismiss}
       />
 
-      <Text style={[styles.header, { color: Colors[theme].accent3 }]}>Essens Tinder</Text>
+      <Animatable.Text
+        animation="fadeInDown"
+        delay={100}
+        duration={700}
+        style={[styles.header, { color: Colors[theme].accent3 }]}
+      >
+        Essens Tinder
+      </Animatable.Text>
 
       <View style={{ position: 'relative', width: '100%' }}>
         <SwipeCard

@@ -171,50 +171,51 @@ function InnerSpeiseplanScreen() {
 
       <Legende />
 
-      {loading ? (
-        <ActivityIndicator size="large" color={Colors[theme].accent1} />
-      ) : gerichte.length === 0 ? (
-        <View style={styles.emptyContainer}>
-          <Text style={[styles.emptyText, { color: Colors[theme].text }]}>
-            Keine Gerichte für diesen Tag gefunden
-          </Text>
-        </View>
-      ) : (
-        <FlatList
-          data={gerichte}
-          keyExtractor={(item) => item.id.toString()}
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
-          }
-          renderItem={({ item, index }) => {
-            const gerichtBewertungen = bewertungen.filter((b) => b.gericht_name === item.name);
+      <FlatList
+        data={gerichte}
+        keyExtractor={(item) => item.id.toString()}
+        refreshControl={
+          <RefreshControl refreshing={refreshing || loading} onRefresh={handleRefresh} />
+        }
+        ListEmptyComponent={
+          loading ? (
+            <ActivityIndicator size="large" color={Colors[theme].accent1} />
+          ) : (
+            <View style={styles.emptyContainer}>
+              <Text style={[styles.emptyText, { color: Colors[theme].text }]}>
+                Keine Gerichte für diesen Tag gefunden
+              </Text>
+            </View>
+          )
+        }
+        renderItem={({ item, index }) => {
+          const gerichtBewertungen = bewertungen.filter((b) => b.gericht_name === item.name);
 
-            return (
-              <Animatable.View
-                animation="fadeInUp"
-                duration={600}
-                delay={index * 100}
-                style={styles.cardContainer}
-              >
-                <Card
-                  name={item.name}
-                  anzeigename={item.anzeigename}
-                  beschreibung={item.beschreibung}
-                  bild_url={item.bild_url}
-                  kategorie={item.kategorie || ''}
-                  bewertungen={gerichtBewertungen}
-                  tags={item.tags}
-                  preis={parseFloat(item.preis)}
-                  isFavorite={isFavorite(item.name)}
-                  isAlert={alerts[item.id]}
-                  onFavoritePress={() => toggleFavorite(item.id, item.name)}
-                  onAlertPress={() => handleToggleAlert(item.id)}
-                />
-              </Animatable.View>
-            );
-          }}
-        />
-      )}
+          return (
+            <Animatable.View
+              animation="fadeInUp"
+              duration={600}
+              delay={index * 100}
+              style={styles.cardContainer}
+            >
+              <Card
+                name={item.name}
+                anzeigename={item.anzeigename}
+                beschreibung={item.beschreibung}
+                bild_url={item.bild_url}
+                kategorie={item.kategorie || ''}
+                bewertungen={gerichtBewertungen}
+                tags={item.tags}
+                preis={parseFloat(item.preis)}
+                isFavorite={isFavorite(item.name)}
+                isAlert={alerts[item.id]}
+                onFavoritePress={() => toggleFavorite(item.id, item.name)}
+                onAlertPress={() => handleToggleAlert(item.id)}
+              />
+            </Animatable.View>
+          );
+        }}
+      />
 
       <SpeiseplanPDFExport selectedDate={selectedDate} />
     </SafeAreaView>
