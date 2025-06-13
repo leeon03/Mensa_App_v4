@@ -1,5 +1,5 @@
 import React from 'react';
-import { Animated, Text, View, StyleSheet } from 'react-native';
+import { Animated, Text, View, StyleSheet, Image, TouchableOpacity } from 'react-native';
 import { Colors } from '../../constants/Colors';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 
@@ -9,6 +9,7 @@ interface Gericht {
   anzeigename: string;
   beschreibung: string;
   tags: string[];
+  bild_url: string;
 }
 
 interface SwipeCardProps {
@@ -18,10 +19,7 @@ interface SwipeCardProps {
   style?: any;
 }
 
-const TAGS: Record<
-  string,
-  { label: string; color: string; icon: React.ReactNode }
-> = {
+const TAGS: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
   vegan: {
     label: 'Vegan',
     color: '#A5D6A7',
@@ -76,41 +74,48 @@ const TAGS: Record<
 
 const SwipeCard: React.FC<SwipeCardProps> = ({ gericht, theme, panHandlers, style }) => {
   return (
-    <Animated.View
-      {...panHandlers}
-      style={[styles.card, style, { backgroundColor: Colors[theme].card }]}
-    >
-      <Text style={[styles.title, { color: Colors[theme].text }]}>
-        {gericht.anzeigename}
-      </Text>
+    <Animated.View {...panHandlers} style={[styles.card, style]}>
+      <View style={styles.imageContainer}>
+        <Image source={{ uri: gericht.bild_url }} style={styles.image} />
+        <View style={styles.overlay} />
 
-      <Text style={[styles.description, { color: Colors[theme].text }]}>
-        {gericht.beschreibung}
-      </Text>
+        {/* Info-Button unten rechts */}
+        <TouchableOpacity
+          onPress={() => {
+            console.log('Info gedrückt');
+          }}
+          style={styles.infoButton}
+        >
+          <Ionicons name="information-circle" size={28} color={Colors[theme].accent3} />
+        </TouchableOpacity>
 
-      <View style={styles.imagePlaceholder}>
-        <Text style={{ color: '#999' }}>Bild folgt</Text>
-      </View>
+        <View style={styles.content}>
+          <Text
+            style={styles.title}
+            numberOfLines={2}
+            ellipsizeMode="tail"
+          >
+            {gericht.anzeigename}
+          </Text>
 
-      {gericht.tags.length > 0 && (
-        <View style={styles.tagsContainer}>
-          {gericht.tags.map((tag: string) => {
-            const key = tag.toLowerCase();
-            const tagData = TAGS[key];
-            if (!tagData) return null;
+          {gericht.tags.length > 0 && (
+            <View style={styles.tagsContainer}>
+              {gericht.tags.map((tag: string) => {
+                const key = tag.toLowerCase();
+                const tagData = TAGS[key];
+                if (!tagData) return null;
 
-            return (
-              <View
-                key={key}
-                style={[styles.tag, { backgroundColor: tagData.color }]}
-              >
-                {tagData.icon}
-                <Text style={styles.tagText}>{tagData.label}</Text>
-              </View>
-            );
-          })}
+                return (
+                  <View key={key} style={[styles.tag, { backgroundColor: tagData.color }]}>
+                    {tagData.icon}
+                    <Text style={styles.tagText}>{tagData.label}</Text>
+                  </View>
+                );
+              })}
+            </View>
+          )}
         </View>
-      )}
+      </View>
     </Animated.View>
   );
 };
@@ -120,40 +125,40 @@ export default SwipeCard;
 const styles = StyleSheet.create({
   card: {
     width: '100%',
-    padding: 24,
     borderRadius: 20,
-    alignItems: 'center',
-    elevation: 3,
+    overflow: 'hidden',
+    elevation: 4,
+    backgroundColor: '#fff',
+  },
+  imageContainer: {
     position: 'relative',
-    shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowRadius: 10,
+    width: '100%',
+    height: 450,
+  },
+  image: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
+  },
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.3)',
+  },
+  content: {
+    position: 'absolute',
+    bottom: 0,
+    width: '100%',
+    padding: 20,
   },
   title: {
-    fontSize: 28,
-    fontWeight: '700',
-    textAlign: 'center',
-  },
-  description: {
-    fontSize: 16,
-    marginTop: 6,
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#fff',
     marginBottom: 12,
-    textAlign: 'center',
-  },
-  imagePlaceholder: {
-    width: '100%',
-    height: 160,
-    backgroundColor: '#ddd',
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 16,
   },
   tagsContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    justifyContent: 'center',
-    marginTop: 8,
     gap: 8,
   },
   tag: {
@@ -167,5 +172,10 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#000',
     marginLeft: 6,
+  },
+  infoButton: {
+    position: 'absolute',
+    bottom: 20,
+    right: 20,
   },
 });

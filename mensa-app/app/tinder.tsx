@@ -27,6 +27,7 @@ interface Gericht {
   anzeigename: string;
   beschreibung: string;
   tags: string[];
+  bild_url: string;
 }
 
 export default function TinderScreen() {
@@ -77,7 +78,7 @@ function SwipeScreen() {
     const loadGerichte = async () => {
       const { data, error } = await supabase
         .from('gerichte')
-        .select('id, name, anzeigename, beschreibung, tags');
+        .select('id, name, anzeigename, beschreibung, tags, bild_url');
 
       if (error) {
         console.error('Fehler beim Laden der Gerichte:', error.message);
