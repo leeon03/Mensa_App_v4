@@ -24,6 +24,7 @@ const screenWidth = Dimensions.get('window').width;
 interface Gericht {
   id: number;
   name: string;
+  anzeigename: string;
   beschreibung: string;
   tags: string[];
 }
@@ -76,7 +77,7 @@ function SwipeScreen() {
     const loadGerichte = async () => {
       const { data, error } = await supabase
         .from('gerichte')
-        .select('id, name, beschreibung, tags');
+        .select('id, name, anzeigename, beschreibung, tags');
 
       if (error) {
         console.error('Fehler beim Laden der Gerichte:', error.message);
