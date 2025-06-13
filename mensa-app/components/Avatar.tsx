@@ -1,112 +1,102 @@
 import React from 'react';
-import {
-  View,
-  Text,
-  Image,
-  StyleSheet,
-  TouchableOpacity,
-  Alert,
-} from 'react-native';
+import { View, Image, TouchableOpacity, Text, Alert } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
-import { supabase } from '../constants/supabase'; // Pfad ggf. anpassen
-import { Ionicons } from '@expo/vector-icons';
+import { supabase } from '../constants/supabase';
+import { decode } from 'base64-arraybuffer'; // ⬅️ installieren: npm install base64-arraybuffer
 
-type AvatarProps = {
-  name: string;
-  avatarUri?: string; // Jetzt Base64-DataURL
-  size?: number;
+// Hilfsfunktion zur Erzeugung des Upload-Pfads
+const generateFilePath = (userId: string) => `${userId}/${Date.now()}.jpg`;
+
+interface AvatarProps {
   userId: string;
-  onUpload?: (dataUrl: string) => void;
-};
+  avatarUri: string | null;
+  onUpload: (url: string) => void;
+  name: string;
+}
 
-export default function Avatar({
-  name,
-  avatarUri,
-  size = 64,
-  userId,
-  onUpload,
-}: AvatarProps) {
-  const initials = name
-    .split(' ')
-    .map((n) => n[0])
-    .join('')
-    .slice(0, 2)
-    .toUpperCase();
-
-  const pickAndSaveImage = async () => {
+export default function Avatar({ userId, avatarUri, onUpload, name }: AvatarProps) {
+  const handleSelectImage = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
-      quality: 0.7,
-      base64: true, // Base64 aktivieren
+      aspect: [1, 1],
+      quality: 1,
+      base64: true, // ⬅️ wichtig für den Blob-Upload
     });
 
-    if (result.canceled || !result.assets?.length) return;
+    if (result.canceled) return;
 
-    const base64 = result.assets[0].base64;
+    const asset = result.assets[0];
+    const filePath = generateFilePath(userId);
+    const base64 = asset.base64;
+
     if (!base64) {
-      Alert.alert('Fehler', 'Bild konnte nicht verarbeitet werden.');
+      Alert.alert('Fehler', 'Bild konnte nicht gelesen werden.');
       return;
     }
 
-    const dataUrl = `data:image/jpeg;base64,${base64}`;
+    try {
+      // Base64 → ArrayBuffer → Blob
+      const blob = new Blob([decode(base64)], { type: 'image/jpeg' });
 
-    const { error } = await supabase
-      .from('users')
-      .update({ avatar_data: dataUrl })
-      .eq('id', userId);
+      const { error } = await supabase.storage
+        .from('avatars')
+        .upload(filePath, blob, {
+          cacheControl: '3600',
+          upsert: true,
+          contentType: 'image/jpeg',
+        });
 
-    if (error) {
-      Alert.alert('Fehler beim Speichern in der Datenbank', error.message);
-      return;
+      if (error) throw error;
+
+      // Öffentliche URL generieren
+      const { data: publicData } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(filePath);
+
+      const publicUrl = publicData?.publicUrl;
+
+      if (publicUrl) {
+        // Callback an Parent weitergeben
+        onUpload(publicUrl);
+
+        // DB aktualisieren
+        await supabase.from('users')
+          .update({ avatar_data: publicUrl })
+          .eq('id', userId);
+
+        Alert.alert('Upload erfolgreich');
+      }
+    } catch (error: any) {
+      console.error('Fehler beim Hochladen:', error);
+      Alert.alert('Fehler beim Hochladen', error.message);
     }
-
-    onUpload?.(dataUrl);
   };
 
   return (
-    <TouchableOpacity onPress={pickAndSaveImage} activeOpacity={0.8}>
-      {avatarUri ? (
-        <Image
-          source={{ uri: avatarUri }}
-          style={[styles.image, { width: size, height: size, borderRadius: size / 2 }]}
-        />
-      ) : (
-        <View
-          style={[
-            styles.initialsCircle,
-            { width: size, height: size, borderRadius: size / 2 },
-          ]}
-        >
-          <Text style={styles.initialsText}>{initials}</Text>
-        </View>
-      )}
-      <View style={styles.editIcon}>
-        <Ionicons name="camera" size={18} color="#fff" />
-      </View>
-    </TouchableOpacity>
+    <View style={{ alignItems: 'center', marginBottom: 20 }}>
+      <TouchableOpacity onPress={handleSelectImage}>
+        {avatarUri ? (
+          <Image
+            source={{ uri: avatarUri }}
+            style={{ width: 100, height: 100, borderRadius: 50 }}
+          />
+        ) : (
+          <View
+            style={{
+              width: 100,
+              height: 100,
+              borderRadius: 50,
+              backgroundColor: '#ccc',
+              justifyContent: 'center',
+              alignItems: 'center',
+            }}
+          >
+            <Text style={{ fontSize: 32 }}>{name[0]}</Text>
+          </View>
+        )}
+        <Text style={{ marginTop: 8, color: '#888' }}>Tippen zum Ändern</Text>
+      </TouchableOpacity>
+    </View>
   );
 }
-
-const styles = StyleSheet.create({
-  image: {
-    resizeMode: 'cover',
-  },
-  initialsCircle: {
-    backgroundColor: '#ccc',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  initialsText: {
-    color: '#fff',
-    fontWeight: '600',
-  },
-  editIcon: {
-    position: 'absolute',
-    bottom: 0,
-    right: 0,
-    backgroundColor: '#0008',
-    borderRadius: 10,
-    padding: 4,
-  },
-});
