@@ -2,9 +2,7 @@ import React from 'react';
 import { View, Image, TouchableOpacity, Text, Alert } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { supabase } from '../constants/supabase';
-import { decode } from 'base64-arraybuffer'; // ⬅️ installieren: npm install base64-arraybuffer
 
-// Hilfsfunktion zur Erzeugung des Upload-Pfads
 const generateFilePath = (userId: string) => `${userId}/${Date.now()}.jpg`;
 
 interface AvatarProps {
@@ -21,14 +19,14 @@ export default function Avatar({ userId, avatarUri, onUpload, name }: AvatarProp
       allowsEditing: true,
       aspect: [1, 1],
       quality: 1,
-      base64: true, // ⬅️ wichtig für den Blob-Upload
+      base64: true,
     });
 
     if (result.canceled) return;
 
     const asset = result.assets[0];
-    const filePath = generateFilePath(userId);
     const base64 = asset.base64;
+    const filePath = generateFilePath(userId);
 
     if (!base64) {
       Alert.alert('Fehler', 'Bild konnte nicht gelesen werden.');
@@ -36,20 +34,18 @@ export default function Avatar({ userId, avatarUri, onUpload, name }: AvatarProp
     }
 
     try {
-      // Base64 → ArrayBuffer → Blob
-      const blob = new Blob([decode(base64)], { type: 'image/jpeg' });
+      // Base64 direkt als Data URL hochladen
+      const dataUrl = `data:image/jpeg;base64,${base64}`;
 
       const { error } = await supabase.storage
         .from('avatars')
-        .upload(filePath, blob, {
-          cacheControl: '3600',
-          upsert: true,
+        .upload(filePath, dataUrl, {
           contentType: 'image/jpeg',
+          upsert: true,
         });
 
       if (error) throw error;
 
-      // Öffentliche URL generieren
       const { data: publicData } = supabase.storage
         .from('avatars')
         .getPublicUrl(filePath);
@@ -57,19 +53,17 @@ export default function Avatar({ userId, avatarUri, onUpload, name }: AvatarProp
       const publicUrl = publicData?.publicUrl;
 
       if (publicUrl) {
-        // Callback an Parent weitergeben
         onUpload(publicUrl);
 
-        // DB aktualisieren
         await supabase.from('users')
           .update({ avatar_data: publicUrl })
           .eq('id', userId);
 
         Alert.alert('Upload erfolgreich');
       }
-    } catch (error: any) {
-      console.error('Fehler beim Hochladen:', error);
-      Alert.alert('Fehler beim Hochladen', error.message);
+    } catch (err: any) {
+      console.error('Fehler beim Hochladen:', err);
+      Alert.alert('Fehler beim Hochladen', err.message);
     }
   };
 

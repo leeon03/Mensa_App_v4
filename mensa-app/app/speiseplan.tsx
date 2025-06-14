@@ -24,6 +24,7 @@ import WeekSelector from '../components/speiseplan_heute/weekSelector';
 import { useFavorites } from '../components/speiseplan_heute/favoritesContext';
 import Legende from '../components/speiseplan_heute/legende';
 import { addDays, format } from 'date-fns';
+import { useRouter } from 'expo-router'; // <--- NEU hinzugefügt
 
 const screenWidth = Dimensions.get('window').width;
 
@@ -60,6 +61,7 @@ function InnerSpeiseplanScreen() {
   const [alerts, setAlerts] = useState<Record<number, boolean>>({});
 
   const { isFavorite, toggleFavorite } = useFavorites();
+  const router = useRouter(); // <--- NEU
 
   useEffect(() => {
     if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -211,6 +213,12 @@ function InnerSpeiseplanScreen() {
                 isAlert={alerts[item.id]}
                 onFavoritePress={() => toggleFavorite(item.id, item.name)}
                 onAlertPress={() => handleToggleAlert(item.id)}
+                onPress={() =>
+                  router.push({
+                    pathname: '/gerichtDetail',
+                    params: { name: item.name },
+                  })
+                }
               />
             </Animatable.View>
           );

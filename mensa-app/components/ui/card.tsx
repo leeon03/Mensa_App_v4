@@ -33,6 +33,7 @@ type CardProps = {
   isAlert: boolean;
   onFavoritePress: () => void;
   onAlertPress: () => void;
+  onPress?: () => void; // Neu: Optional für Navigation
 };
 
 const TAGS: Record<
@@ -104,6 +105,7 @@ const Card: React.FC<CardProps> = ({
   isAlert,
   onFavoritePress,
   onAlertPress,
+  onPress,
 }) => {
   const theme = useColorScheme() || 'light';
   const themeColor = Colors[theme];
@@ -159,7 +161,7 @@ const Card: React.FC<CardProps> = ({
     }).format(value);
   };
 
-  return (
+  const CardContent = (
     <View
       style={[
         styles.card,
@@ -176,10 +178,7 @@ const Card: React.FC<CardProps> = ({
               color={isFavorite ? '#e74c3c' : '#FFF'}
             />
           </Pressable>
-          <Pressable
-            onPress={handleAlertPress}
-            style={[styles.iconButton, { marginLeft: 8 }]}
-          >
+          <Pressable onPress={handleAlertPress} style={[styles.iconButton, { marginLeft: 8 }]}>
             <Ionicons
               name={isAlert ? 'notifications' : 'notifications-outline'}
               size={24}
@@ -208,10 +207,7 @@ const Card: React.FC<CardProps> = ({
               if (!tagData) return null;
 
               return (
-                <View
-                  key={key}
-                  style={[styles.tag, { backgroundColor: tagData.color }]}
-                >
+                <View key={key} style={[styles.tag, { backgroundColor: tagData.color }]}>
                   {tagData.icon}
                   <Text style={styles.tagText}>{tagData.label}</Text>
                 </View>
@@ -228,6 +224,12 @@ const Card: React.FC<CardProps> = ({
         </View>
       </View>
     </View>
+  );
+
+  return onPress ? (
+    <Pressable onPress={onPress}>{CardContent}</Pressable>
+  ) : (
+    CardContent
   );
 };
 

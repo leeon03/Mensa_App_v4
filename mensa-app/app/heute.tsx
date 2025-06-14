@@ -284,11 +284,12 @@ function HeuteContent() {
 
                 {isActive && (
                   <GerichtBewertungHeute
-                    gerichtId={gericht.id}
-                    kommentare={gericht.kommentare}
-                    userId={userId}
-                    onUpdate={() => fetchKommentareFürGericht(gericht.id)}
-                  />
+                  gerichtId={gericht.id}
+                  gerichtName={gericht.name} // <--- HINZUGEFÜGT
+                  kommentare={gericht.kommentare}
+                  userId={userId}
+                  onUpdate={() => fetchKommentareFürGericht(gericht.id)}
+                />
                 )}
               </Animatable.View>
             );

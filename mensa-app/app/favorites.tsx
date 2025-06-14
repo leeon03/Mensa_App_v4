@@ -14,6 +14,7 @@ import { useFavorites } from '../components/speiseplan_heute/favoritesContext';
 import { supabase } from '../constants/supabase';
 import Card from '../components/ui/card';
 import Legende from '../components/speiseplan_heute/legende';
+import { useRouter } from 'expo-router'; // ✅ Navigation hinzugefügt
 
 export default function FavoritesScreen() {
   return (
@@ -27,6 +28,7 @@ function FavoritesInner() {
   const theme = useColorScheme() || 'light';
   const themeColor = Colors[theme];
   const { toggleFavorite, isFavorite } = useFavorites();
+  const router = useRouter(); // ✅ Router-Hook
 
   const [gerichte, setGerichte] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -127,13 +129,19 @@ function FavoritesInner() {
                   beschreibung={gericht.beschreibung}
                   bild_url={gericht.bild_url}
                   kategorie={gericht.kategorie || ''}
-                  bewertungen={[]}
+                  bewertungen={[]} // Favoriten haben keine Bewertungen geladen
                   tags={gericht.tags || []}
                   preis={parseFloat(gericht.preis)}
                   isFavorite={isFavorite(gericht.name.trim().toLowerCase())}
                   isAlert={false}
                   onFavoritePress={() => handleRemove(gericht.id, gericht.name)}
                   onAlertPress={() => {}}
+                  onPress={() =>
+                    router.push({
+                      pathname: '/gerichtDetail',
+                      params: { name: gericht.name },
+                    })
+                  }
                 />
               </Animated.View>
             );
