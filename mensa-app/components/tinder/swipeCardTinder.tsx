@@ -1,7 +1,15 @@
 import React from 'react';
-import { Animated, Text, View, StyleSheet, Image, TouchableOpacity } from 'react-native';
+import {
+  Animated,
+  Text,
+  View,
+  StyleSheet,
+  Image,
+  TouchableOpacity,
+} from 'react-native';
 import { Colors } from '../../constants/Colors';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router'; // ✅ NEU: Navigation importieren
 
 interface Gericht {
   id: number;
@@ -73,28 +81,29 @@ const TAGS: Record<string, { label: string; color: string; icon: React.ReactNode
 };
 
 const SwipeCard: React.FC<SwipeCardProps> = ({ gericht, theme, panHandlers, style }) => {
+  const router = useRouter(); // ✅ NEU
+
   return (
     <Animated.View {...panHandlers} style={[styles.card, style]}>
       <View style={styles.imageContainer}>
         <Image source={{ uri: gericht.bild_url }} style={styles.image} />
         <View style={styles.overlay} />
 
-        {/* Info-Button unten rechts */}
+        {/* Info-Button: navigiert zur Detailansicht */}
         <TouchableOpacity
-          onPress={() => {
-            console.log('Info gedrückt');
-          }}
+          onPress={() =>
+            router.push({
+              pathname: '/gerichtDetail',
+              params: { name: gericht.name },
+            })
+          }
           style={styles.infoButton}
         >
           <Ionicons name="information-circle" size={28} color={Colors[theme].accent3} />
         </TouchableOpacity>
 
         <View style={styles.content}>
-          <Text
-            style={styles.title}
-            numberOfLines={2}
-            ellipsizeMode="tail"
-          >
+          <Text style={styles.title} numberOfLines={2} ellipsizeMode="tail">
             {gericht.anzeigename}
           </Text>
 
