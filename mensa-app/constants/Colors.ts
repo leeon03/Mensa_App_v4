@@ -14,6 +14,7 @@ export const Colors = {
     card: '#f1f1f1',
     tabIconDefault: '#ccc',
     tabIconSelected: tintColorLight,
+    border: '#e0e0e0',
 
     accent1: '#63a53d', // Benutzer Login
     accent2: '#fb8d30', // Registrierung
@@ -32,6 +33,7 @@ export const Colors = {
     card: '#1F1F1F',
     tabIconDefault: '#777777',
     tabIconSelected: tintColorDark,
+    border: '#333',
 
     accent1: '#63a53d', // Benutzer Login
     accent2: '#fb8d30', // Registrierung
