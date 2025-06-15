@@ -20,6 +20,7 @@ import { MatchModal } from '../components/tinder/matchModal';
 import IntroModal from '../components/tinder/introModal';
 import SwipeCard from '../components/tinder/swipeCardTinder';
 import { useFavorites } from '../components/speiseplan_heute/favoritesContext';
+import { useRouter } from 'expo-router'; // ✅ hinzugefügt
 
 const screenWidth = Dimensions.get('window').width;
 
@@ -44,6 +45,7 @@ export default function TinderScreen() {
 
 function SwipeScreen() {
   const theme = useColorScheme() || 'light';
+  const router = useRouter(); // ✅
   const [gerichte, setGerichte] = useState<Gericht[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [favoriteIds, setFavoriteIds] = useState<number[]>([]);
@@ -200,6 +202,18 @@ function SwipeScreen() {
   const currentGericht = gerichte[currentIndex];
   const isLight = theme === 'light';
 
+  const handleCardPress = () => {
+    if (!currentGericht) return;
+    router.push({
+      pathname: '/gerichtDetail',
+      params: {
+        name: currentGericht.name,
+        source: 'tinder',
+        color: Colors[theme].accent3,
+      },
+    });
+  };
+
   if (loading) {
     return (
       <View style={styles.centered}>
@@ -245,12 +259,15 @@ function SwipeScreen() {
       </Animatable.Text>
 
       <View style={{ position: 'relative', width: '100%' }}>
-        <SwipeCard
-          gericht={currentGericht}
-          theme={theme}
-          panHandlers={panResponder.panHandlers}
-          style={swipeCardStyle}
-        />
+        <TouchableOpacity activeOpacity={0.9} onPress={handleCardPress}>
+          <SwipeCard
+            gericht={currentGericht}
+            theme={theme}
+            panHandlers={panResponder.panHandlers}
+            style={swipeCardStyle}
+          />
+        </TouchableOpacity>
+
         {swipeDirection === 'like' && (
           <View style={styles.tinderLike}>
             <Text style={styles.tinderLikeText}>LIKE</Text>

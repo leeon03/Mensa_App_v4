@@ -22,6 +22,7 @@ import { supabase } from '../constants/supabase';
 import { format } from 'date-fns';
 import GerichtBewertungHeute from '../components/speiseplan_heute/gerichtBewertungHeute';
 import { useFavorites } from '../components/speiseplan_heute/favoritesContext';
+import { useRouter } from 'expo-router'; // ✅ hinzugefügt
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -66,6 +67,7 @@ export default function HeuteScreen() {
 function HeuteContent() {
   const theme = useColorScheme() || 'light';
   const themeColor = Colors[theme];
+  const router = useRouter(); // ✅ hinzugefügt
 
   const [gerichte, setGerichte] = useState<Gericht[]>([]);
   const [bewertungen, setBewertungen] = useState<Bewertung[]>([]);
@@ -265,7 +267,16 @@ function HeuteContent() {
                 delay={gericht.id * 100}
                 style={{ marginBottom: 16 }}
               >
-                <TouchableOpacity onPress={() => setAusgewählt(isActive ? null : gericht.id)}>
+                <TouchableOpacity onPress={() => {
+                  router.push({
+                    pathname: '/gerichtDetail',
+                    params: {
+                      name: gericht.name,
+                      source: 'heute',
+                      color: themeColor.accent2, // 🟠 Orange für „Heute“
+                    },
+                  });
+                }}>
                   <Card
                     name={gericht.name}
                     anzeigename={gericht.anzeigename}
@@ -284,12 +295,12 @@ function HeuteContent() {
 
                 {isActive && (
                   <GerichtBewertungHeute
-                  gerichtId={gericht.id}
-                  gerichtName={gericht.name} // <--- HINZUGEFÜGT
-                  kommentare={gericht.kommentare}
-                  userId={userId}
-                  onUpdate={() => fetchKommentareFürGericht(gericht.id)}
-                />
+                    gerichtId={gericht.id}
+                    gerichtName={gericht.name}
+                    kommentare={gericht.kommentare}
+                    userId={userId}
+                    onUpdate={() => fetchKommentareFürGericht(gericht.id)}
+                  />
                 )}
               </Animatable.View>
             );

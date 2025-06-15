@@ -24,7 +24,7 @@ import WeekSelector from '../components/speiseplan_heute/weekSelector';
 import { useFavorites } from '../components/speiseplan_heute/favoritesContext';
 import Legende from '../components/speiseplan_heute/legende';
 import { addDays, format } from 'date-fns';
-import { useRouter } from 'expo-router'; // <--- NEU hinzugefügt
+import { useRouter } from 'expo-router';
 
 const screenWidth = Dimensions.get('window').width;
 
@@ -61,7 +61,7 @@ function InnerSpeiseplanScreen() {
   const [alerts, setAlerts] = useState<Record<number, boolean>>({});
 
   const { isFavorite, toggleFavorite } = useFavorites();
-  const router = useRouter(); // <--- NEU
+  const router = useRouter();
 
   useEffect(() => {
     if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -216,7 +216,11 @@ function InnerSpeiseplanScreen() {
                 onPress={() =>
                   router.push({
                     pathname: '/gerichtDetail',
-                    params: { name: item.name },
+                    params: {
+                      name: item.name,
+                      source: 'speiseplan',
+                      color: Colors[theme].accent1, // 👈 Übergibt grün z. B.
+                    },
                   })
                 }
               />

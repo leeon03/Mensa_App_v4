@@ -14,7 +14,7 @@ import { useFavorites } from '../components/speiseplan_heute/favoritesContext';
 import { supabase } from '../constants/supabase';
 import Card from '../components/ui/card';
 import Legende from '../components/speiseplan_heute/legende';
-import { useRouter } from 'expo-router'; // ✅ Navigation hinzugefügt
+import { useRouter } from 'expo-router';
 
 export default function FavoritesScreen() {
   return (
@@ -28,7 +28,7 @@ function FavoritesInner() {
   const theme = useColorScheme() || 'light';
   const themeColor = Colors[theme];
   const { toggleFavorite, isFavorite } = useFavorites();
-  const router = useRouter(); // ✅ Router-Hook
+  const router = useRouter();
 
   const [gerichte, setGerichte] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -96,7 +96,7 @@ function FavoritesInner() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: themeColor.background }]}>
-      <Text style={styles.title}>Deine Favoriten</Text>
+      <Text style={[styles.title, { color: '#ff4c4c' }]}>Deine Favoriten</Text>
       <Legende />
 
       {loading ? (
@@ -139,7 +139,11 @@ function FavoritesInner() {
                   onPress={() =>
                     router.push({
                       pathname: '/gerichtDetail',
-                      params: { name: gericht.name },
+                      params: {
+                        name: gericht.name,
+                        source: 'favorites',
+                        color: '#ff4c4c', // 🔴 ROT für Favoriten
+                      },
                     })
                   }
                 />
@@ -163,6 +167,5 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: 20,
     textTransform: 'uppercase',
-    color: 'red',
   },
 });

@@ -1,28 +1,47 @@
 import React from 'react';
-import { Modal, Text, TouchableOpacity, View, StyleSheet } from 'react-native';
+import {
+  Modal,
+  Text,
+  TouchableOpacity,
+  View,
+  StyleSheet,
+  Image,
+} from 'react-native';
 import { BlurView } from 'expo-blur';
 import LottieView from 'lottie-react-native';
 
 interface MatchModalProps {
   visible: boolean;
   onClose: () => void;
+  bildUrl?: string; // Bild des gelikten Gerichts
 }
 
-export const MatchModal: React.FC<MatchModalProps> = ({ visible, onClose }) => {
+export const MatchModal: React.FC<MatchModalProps> = ({ visible, onClose, bildUrl }) => {
   return (
     <Modal visible={visible} transparent animationType="fade">
       <TouchableOpacity activeOpacity={1} onPress={onClose} style={styles.container}>
         <BlurView intensity={40} tint="light" style={styles.card}>
           <Text style={styles.title}>✨ It's a Match!</Text>
+
           <LottieView
             source={require('../../assets/animations/match.json')}
             autoPlay
             loop
             style={styles.lottie}
           />
-          <View style={styles.imagePlaceholder}>
-            <Text style={styles.imageText}>Bild folgt</Text>
-          </View>
+
+          {bildUrl ? (
+            <Image
+              source={{ uri: bildUrl }}
+              style={styles.image}
+              resizeMode="cover"
+            />
+          ) : (
+            <View style={styles.imagePlaceholder}>
+              <Text style={styles.imageText}>Kein Bild verfügbar</Text>
+            </View>
+          )}
+
           <Text style={styles.hint}>Zum Fortfahren tippen</Text>
         </BlurView>
       </TouchableOpacity>
@@ -65,6 +84,16 @@ const styles = StyleSheet.create({
     width: 200,
     height: 200,
     marginTop: 20,
+  },
+  image: {
+    width: 280,
+    height: 200,
+    borderRadius: 20,
+    marginTop: 24,
+    shadowColor: '#000',
+    shadowOpacity: 0.2,
+    shadowRadius: 10,
+    elevation: 8,
   },
   imagePlaceholder: {
     width: 280,
