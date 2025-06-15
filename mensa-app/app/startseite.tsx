@@ -129,14 +129,11 @@ function InnerHomeScreen() {
         />
         {isAdmin && (
           <PrimaryButton
-            icon="settings-outline"
-            label="Admin Panel"
-            color="#d9534f"
-            onPress={() => {
-              console.log('Admin Panel kommt bald!');
-              // router.push('/admin'); // Später aktivieren
-            }}
-          />
+          icon="settings-outline"
+          label="Admin Panel"
+          color="#d9534f"
+          onPress={() => router.push('/adminDashboard')} // ✅ ganz einfach
+        />        
         )}
       </View>
     </SafeAreaView>
