@@ -14,10 +14,14 @@ import { Colors } from '../constants/Colors';
 import { useColorScheme } from 'react-native';
 import { supabase } from '../constants/supabase';
 import { SafeAreaView } from 'react-native-safe-area-context';
+
+
+
 import {
   Ionicons,
   MaterialCommunityIcons,
 } from '@expo/vector-icons';
+
 
 const TAGS = [
   {
