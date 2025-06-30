@@ -1,5 +1,5 @@
 const tintColorLight = '#2E8B57';
-const tintColorDark = '#2E8B57'; // Gleich wie Light Mode, damit Farben konsistent bleiben
+const tintColorDark = '#2E8B57'; // gleiche Farbe wie Light für Konsistenz
 
 export const Colors = {
   light: {
@@ -19,7 +19,8 @@ export const Colors = {
     accent1: '#63a53d', // Benutzer Login
     accent2: '#fb8d30', // Registrierung
     accent3: '#fdc128', // Admin Login
-    buttonText: '#ffffff', // HINZUGEFÜGT
+    buttonText: '#ffffff',
+    border: '#DDDDDD', // hinzugefügt
   },
   dark: {
     background: '#121212',
@@ -35,9 +36,10 @@ export const Colors = {
     tabIconSelected: tintColorDark,
     border: '#333',
 
-    accent1: '#63a53d', // Benutzer Login
-    accent2: '#fb8d30', // Registrierung
-    accent3: '#fdc128', // Admin Login
-    buttonText: '#ffffff', // HINZUGEFÜGT
+    accent1: '#63a53d',
+    accent2: '#fb8d30',
+    accent3: '#fdc128',
+    buttonText: '#ffffff',
+    border: '#333333', // hinzugefügt
   },
-};
+} as const;
