@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, useColorScheme, Alert } from 'react-native';
+import { View, Text, StyleSheet, useColorScheme, Alert } from 'react-native';
 import KommentarBox from './KommentarBox';
 import ChatBubble from './ChatBubble';
 import * as Animatable from 'react-native-animatable';
@@ -18,10 +18,11 @@ type Kommentar = {
 };
 
 type Props = {
-  gerichtId: number; // ✅ geändert von string zu number
+  gerichtId: number;
   kommentare: Kommentar[];
   userId: string | null;
   onUpdate: () => void;
+  buttonColor?: string; // <--- NEU
 };
 
 export default function GerichtBewertungHeute({
@@ -29,9 +30,11 @@ export default function GerichtBewertungHeute({
   kommentare,
   userId,
   onUpdate,
+  buttonColor,
 }: Props) {
   const scheme = useColorScheme() || 'light';
   const colors = Colors[scheme];
+  const highlight = buttonColor || colors.accent2;
 
   const [localKommentare, setLocalKommentare] = useState<Kommentar[]>([]);
 
@@ -87,28 +90,22 @@ export default function GerichtBewertungHeute({
     <Animatable.View
       animation="fadeIn"
       duration={400}
-      style={[styles.detailBox, { backgroundColor: colors.card, shadowColor: colors.text }]}
+      style={{ width: '100%' }}
     >
-      <Text style={[styles.detailTitle, { color: colors.text }]}>
-        Deine Bewertung
-      </Text>
+      <Text style={[styles.heading, { color: colors.text }]}>Deine Bewertung</Text>
 
       {hatBereitsBewertet ? (
-        <Animatable.View
-          animation="fadeInDown"
-          duration={400}
-          style={[styles.infoBox, { borderColor: colors.accent2 }]}
-        >
-          <Ionicons name="checkmark-circle" size={20} color={colors.accent1} style={{ marginRight: 6 }} />
+        <View style={[styles.infoBox, { borderColor: highlight }]}>
+          <Ionicons name="checkmark-circle" size={20} color={highlight} style={{ marginRight: 6 }} />
           <Text style={[styles.infoText, { color: colors.text }]}>
             Du hast dieses Gericht bereits bewertet. Vielen Dank!
           </Text>
-        </Animatable.View>
+        </View>
       ) : (
-        <KommentarBox onSubmit={handleKommentarSubmit} disabled={hatBereitsBewertet} />
+        <KommentarBox onSubmit={handleKommentarSubmit} disabled={hatBereitsBewertet} buttonColor={highlight} />
       )}
 
-      <Text style={[styles.detailTitle, { color: colors.text }]}>Kommentare</Text>
+      <Text style={[styles.heading, { color: colors.text }]}>Kommentare</Text>
 
       {alleKommentare.length === 0 ? (
         <Text style={{ color: colors.icon, marginBottom: 8 }}>Noch keine Kommentare</Text>
@@ -136,29 +133,20 @@ export default function GerichtBewertungHeute({
 }
 
 const styles = StyleSheet.create({
-  detailBox: {
-    marginTop: 12,
-    padding: 14,
-    borderRadius: 10,
-    marginHorizontal: 8,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 4,
-    gap: 14,
-  },
-  detailTitle: {
+  heading: {
     fontSize: 18,
     fontWeight: '700',
-    marginBottom: 4,
+    marginBottom: 8,
+    paddingHorizontal: 16,
   },
   infoBox: {
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1.5,
-    padding: 10,
-    borderRadius: 8,
-    marginBottom: 10,
+    padding: 12,
+    borderRadius: 12,
+    marginBottom: 16,
+    marginHorizontal: 16,
   },
   infoText: {
     fontSize: 15,
