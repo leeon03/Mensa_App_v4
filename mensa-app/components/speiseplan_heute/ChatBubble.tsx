@@ -20,6 +20,7 @@ type Props = {
   avatarUri?: string;
   loading?: boolean;
   own?: boolean;
+  highlightColor?: string; // NEU
 };
 
 export default function ChatBubble({
@@ -30,15 +31,20 @@ export default function ChatBubble({
   avatarUri,
   loading = false,
   own = false,
+  highlightColor,
 }: Props) {
   const theme = useColorScheme() || 'light';
   const themeColor = Colors[theme];
   const isDark = theme === 'dark';
 
   const bubbleColors = {
-    backgroundColor: own ? themeColor.accent2 : themeColor.surface,
-    textColor: own ? themeColor.buttonText : themeColor.text,
-    starColor: own ? themeColor.buttonText : themeColor.accent2,
+    backgroundColor: own
+      ? highlightColor || themeColor.accent2
+      : themeColor.surface,
+    textColor: own ? '#fff' : themeColor.text,
+    starColor: own
+      ? '#fff'
+      : highlightColor || themeColor.accent2,
     borderColor: isDark ? '#444' : '#ddd',
   };
 

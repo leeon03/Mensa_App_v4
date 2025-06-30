@@ -22,7 +22,7 @@ type Props = {
   kommentare: Kommentar[];
   userId: string | null;
   onUpdate: () => void;
-  buttonColor?: string; // <--- NEU
+  buttonColor?: string; // verwendet für Styling
 };
 
 export default function GerichtBewertungHeute({
@@ -124,6 +124,7 @@ export default function GerichtBewertungHeute({
               own={kommentar.own}
               avatarUri={kommentar.avatarUri}
               timestamp={kommentar.timestamp ?? 'Gerade eben'}
+              highlightColor={highlight} // NEU: Farbangleichung
             />
           </Animatable.View>
         ))
