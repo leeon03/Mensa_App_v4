@@ -4,7 +4,7 @@ import { Alert } from 'react-native';
 
 interface FavoritesContextType {
   favorites: Record<string, boolean>;
-  toggleFavorite: (gerichtId: number, gerichtName: string) => Promise<void>;
+  toggleFavorite: (gerichtId: number, gerichtName: string) => Promise<boolean>; // changed from void ➜ boolean
   isFavorite: (gerichtName: string) => boolean;
 }
 
@@ -53,7 +53,6 @@ export const FavoritesProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session?.user) {
         setUserId(session.user.id);
-        // Favoriten neu laden
         supabase
           .from('favorites')
           .select('gericht_name')
@@ -77,10 +76,13 @@ export const FavoritesProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     };
   }, []);
 
-  const toggleFavorite = async (gerichtId: number, gerichtName: string) => {
+  const toggleFavorite = async (
+    gerichtId: number,
+    gerichtName: string
+  ): Promise<boolean> => {
     if (!userId) {
       Alert.alert('Nicht eingeloggt', 'Bitte melde dich an.');
-      return;
+      return false;
     }
 
     const isFav = favorites[gerichtName] || false;
@@ -104,36 +106,44 @@ export const FavoritesProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
         if (!insertError) {
           setFavorites((prev) => ({ ...prev, [gerichtName]: true }));
+          return true;
         } else {
           console.error('Fehler beim Hinzufügen:', insertError);
+          return false;
         }
+      } else {
+        return false;
       }
     } else {
-      Alert.alert(
-        'Favorit entfernen',
-        'Möchtest du dieses Gericht wirklich aus deinen Favoriten löschen?',
-        [
-          { text: 'Abbrechen', style: 'cancel' },
-          {
-            text: 'Entfernen',
-            style: 'destructive',
-            onPress: async () => {
-              const { error: deleteError } = await supabase
-                .from('favorites')
-                .delete()
-                .eq('user_id', userId)
-                .eq('gericht_name', gerichtName);
+      return new Promise((resolve) => {
+        Alert.alert(
+          'Favorit entfernen',
+          'Möchtest du dieses Gericht wirklich aus deinen Favoriten löschen?',
+          [
+            { text: 'Abbrechen', style: 'cancel', onPress: () => resolve(false) },
+            {
+              text: 'Entfernen',
+              style: 'destructive',
+              onPress: async () => {
+                const { error: deleteError } = await supabase
+                  .from('favorites')
+                  .delete()
+                  .eq('user_id', userId)
+                  .eq('gericht_name', gerichtName);
 
-              if (!deleteError) {
-                setFavorites((prev) => ({ ...prev, [gerichtName]: false }));
-              } else {
-                console.error('Fehler beim Entfernen:', deleteError);
-                Alert.alert('Fehler', 'Favorit konnte nicht gelöscht werden.');
-              }
+                if (!deleteError) {
+                  setFavorites((prev) => ({ ...prev, [gerichtName]: false }));
+                  resolve(true);
+                } else {
+                  console.error('Fehler beim Entfernen:', deleteError);
+                  Alert.alert('Fehler', 'Favorit konnte nicht gelöscht werden.');
+                  resolve(false);
+                }
+              },
             },
-          },
-        ]
-      );
+          ]
+        );
+      });
     }
   };
 

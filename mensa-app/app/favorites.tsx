@@ -1,6 +1,5 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import {
-  View,
   Text,
   StyleSheet,
   ScrollView,
@@ -30,53 +29,65 @@ function FavoritesInner() {
   const { toggleFavorite, isFavorite } = useFavorites();
   const router = useRouter();
 
-  const [gerichte, setGerichte] = useState<any[]>([]);
+  type Gericht = {
+    id: number;
+    name: string;
+    anzeigename: string;
+    beschreibung: string;
+    tags?: string[];
+    preis: string;
+    bild_url: string;
+    kategorie?: string;
+  };
+
+  const [gerichte, setGerichte] = useState<Gericht[]>([]);
   const [loading, setLoading] = useState(true);
   const animationRefs = useRef<Record<string, Animated.Value>>({});
 
-  useEffect(() => {
-    const loadFavoritesFromDB = async () => {
-      setLoading(true);
+  const loadFavoritesFromDB = async () => {
+    setLoading(true);
 
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
 
-      if (!session?.user) {
-        setGerichte([]);
-        setLoading(false);
-        return;
-      }
-
-      const { data, error } = await supabase
-        .from('favorites')
-        .select('gerichte (id, name, anzeigename, beschreibung, tags, preis, bild_url, kategorie)')
-        .eq('user_id', session.user.id);
-
-      if (error) {
-        console.error('Fehler beim Laden der Favoriten:', error);
-        setGerichte([]);
-        setLoading(false);
-        return;
-      }
-
-      const gefiltert = data.map((f) => f.gerichte).filter((g) => g !== null);
-
-      // Animationswerte vorbereiten
-      gefiltert.forEach((g) => {
-        const key = g.name.trim().toLowerCase();
-        animationRefs.current[key] = new Animated.Value(1);
-      });
-
-      setGerichte(gefiltert);
+    if (!session?.user) {
+      setGerichte([]);
       setLoading(false);
-    };
+      return;
+    }
 
+    const { data, error } = await supabase
+      .from('favorites')
+      .select('gerichte (id, name, anzeigename, beschreibung, tags, preis, bild_url, kategorie)')
+      .eq('user_id', session.user.id);
+
+    if (error) {
+      console.error('Fehler beim Laden der Favoriten:', error);
+      setGerichte([]);
+      setLoading(false);
+      return;
+    }
+
+    const gefiltert = data.map((f) => f.gerichte).filter((g) => g !== null);
+
+    gefiltert.forEach((g) => {
+      const key = g.id.toString();
+      if (!animationRefs.current[key]) {
+        animationRefs.current[key] = new Animated.Value(1);
+      }
+    });
+
+    setGerichte(gefiltert);
+    setLoading(false);
+  };
+
+  useEffect(() => {
     loadFavoritesFromDB();
   }, []);
 
-  const handleRemove = async (gerichtId: number, gerichtName: string) => {
-    const key = gerichtName.trim().toLowerCase();
+  const handleRemove = useCallback(async (gerichtId: number, gerichtName: string) => {
+    const key = gerichtId.toString();
     const anim = animationRefs.current[key];
 
     const confirmed = await toggleFavorite(gerichtId, gerichtName);
@@ -87,12 +98,16 @@ function FavoritesInner() {
         duration: 300,
         useNativeDriver: true,
       }).start(() => {
-        setGerichte((prev) =>
-          prev.filter((g) => g.name.trim().toLowerCase() !== key)
-        );
+        // ✅ Immediately remove the item from UI
+        setGerichte((prev) => prev.filter((g) => g.id !== gerichtId));
+
+        // 🔁 Optional: reload from DB after short delay
+        setTimeout(() => {
+          loadFavoritesFromDB();
+        }, 300);
       });
     }
-  };
+  }, [toggleFavorite]);
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: themeColor.background }]}>
@@ -108,7 +123,7 @@ function FavoritesInner() {
       ) : (
         <ScrollView>
           {gerichte.map((gericht) => {
-            const key = gericht.name.trim().toLowerCase();
+            const key = gericht.id.toString();
             const opacity = animationRefs.current[key] || new Animated.Value(1);
             const translateX = opacity.interpolate({
               inputRange: [0, 1],
@@ -132,7 +147,7 @@ function FavoritesInner() {
                   bewertungen={[]} // Favoriten haben keine Bewertungen geladen
                   tags={gericht.tags || []}
                   preis={parseFloat(gericht.preis)}
-                  isFavorite={isFavorite(gericht.name.trim().toLowerCase())}
+                  isFavorite={isFavorite(gericht.name)}
                   isAlert={false}
                   onFavoritePress={() => handleRemove(gericht.id, gericht.name)}
                   onAlertPress={() => {}}
@@ -142,7 +157,7 @@ function FavoritesInner() {
                       params: {
                         name: gericht.name,
                         source: 'favorites',
-                        color: '#ff4c4c', // 🔴 ROT für Favoriten
+                        color: '#ff4c4c',
                       },
                     })
                   }
