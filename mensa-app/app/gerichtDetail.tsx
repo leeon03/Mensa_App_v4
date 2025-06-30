@@ -4,7 +4,6 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  Image,
   ActivityIndicator,
   TouchableOpacity,
   Linking,
@@ -18,6 +17,7 @@ import { Colors } from '../constants/Colors';
 import { supabase } from '../constants/supabase';
 import NaehrwertBox from '../components/gerichtDetail/naerwerteBox';
 import ZutatenTabelle from '../components/gerichtDetail/zutatenTabelle';
+import GerichtHeader from '../components/gerichtDetail/gerichtHeader';
 
 const TAGS = [
   { key: 'vegan', label: 'Vegan', icon: <MaterialCommunityIcons name="leaf" size={14} color="#000" />, color: '#A5D6A7' },
@@ -50,6 +50,7 @@ export default function GerichtDetailScreen() {
   const themeColor = Colors[theme];
 
   const [gericht, setGericht] = useState<any>(null);
+  const [bewertungen, setBewertungen] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -57,18 +58,21 @@ export default function GerichtDetailScreen() {
 
     const loadGericht = async () => {
       setLoading(true);
-      const { data, error } = await supabase
-        .from('gerichte')
-        .select('*')
-        .eq('name', name)
-        .order('datum', { ascending: false })
-        .limit(1);
+      const [{ data: gerichtData, error: gerichtError }, { data: bewertungenData, error: bewertungenError }] =
+        await Promise.all([
+          supabase.from('gerichte').select('*').eq('name', name).order('datum', { ascending: false }).limit(1),
+          supabase.from('bewertungen').select('*').eq('gericht_name', name),
+        ]);
 
-      if (error || !data || data.length === 0) {
-        console.error('Fehler beim Laden:', error);
+      if (gerichtError || !gerichtData || gerichtData.length === 0) {
+        console.error('Fehler beim Laden des Gerichts:', gerichtError);
         setGericht(null);
       } else {
-        setGericht(data[0]);
+        setGericht(gerichtData[0]);
+      }
+
+      if (!bewertungenError && bewertungenData) {
+        setBewertungen(bewertungenData);
       }
 
       setLoading(false);
@@ -101,16 +105,17 @@ export default function GerichtDetailScreen() {
       <ScrollView contentContainerStyle={styles.scrollContainer}>
         <Text style={[styles.heading, { color: baseColor }]}>Gericht im Detail</Text>
 
-        <Image source={{ uri: gericht.bild_url }} style={styles.image} />
+        <GerichtHeader
+          bild_url={gericht.bild_url}
+          anzeigename={gericht.anzeigename}
+          kategorie={gericht.kategorie}
+          beschreibung={gericht.beschreibung}
+          textColor={themeColor.text}
+          bewertungen={bewertungen}
+          name={gericht.name}
+        />
 
         <View style={styles.content}>
-          <Text style={[styles.title, { color: themeColor.text }]}>{gericht.anzeigename}</Text>
-          <Text style={[styles.kategorie, { color: themeColor.icon }]}>
-            {gericht.kategorie?.toUpperCase() || ''}
-          </Text>
-
-          <Text style={[styles.beschreibung, { color: themeColor.text }]}>{gericht.beschreibung}</Text>
-
           {gericht.tags?.length > 0 && (
             <View style={styles.tagsContainer}>
               {gericht.tags.map((tag: string) => {
@@ -180,27 +185,8 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     textTransform: 'uppercase',
   },
-  image: {
-    width: '100%',
-    height: 200,
-    resizeMode: 'cover',
-  },
   content: {
     padding: 16,
-  },
-  title: {
-    fontSize: 26,
-    fontWeight: 'bold',
-    marginBottom: 8,
-  },
-  kategorie: {
-    fontSize: 14,
-    fontWeight: '600',
-    marginBottom: 8,
-  },
-  beschreibung: {
-    fontSize: 16,
-    marginBottom: 12,
   },
   preis: {
     fontSize: 16,
