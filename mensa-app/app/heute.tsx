@@ -22,7 +22,7 @@ import { supabase } from '../constants/supabase';
 import { format } from 'date-fns';
 import GerichtBewertungHeute from '../components/speiseplan_heute/gerichtBewertungHeute';
 import { useFavorites } from '../components/speiseplan_heute/favoritesContext';
-import { useRouter } from 'expo-router'; // ✅ hinzugefügt
+import { useRouter } from 'expo-router';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -67,14 +67,13 @@ export default function HeuteScreen() {
 function HeuteContent() {
   const theme = useColorScheme() || 'light';
   const themeColor = Colors[theme];
-  const router = useRouter(); // ✅ hinzugefügt
+  const router = useRouter();
 
   const [gerichte, setGerichte] = useState<Gericht[]>([]);
   const [bewertungen, setBewertungen] = useState<Bewertung[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
-  const [ausgewählt, setAusgewählt] = useState<number | null>(null);
   const [alerts, setAlerts] = useState<Record<number, boolean>>({});
 
   const { isFavorite, toggleFavorite } = useFavorites();
@@ -94,9 +93,9 @@ function HeuteContent() {
     ]);
 
     const kommentare: Kommentar[] = (gerichtBews || []).map((bew) => {
-      const firstName = bew.users?.first_name || '';
-      const lastInitial = bew.users?.last_name?.charAt(0) || '';
-      const formattedName = `${firstName} ${lastInitial}.`.trim();
+      const formattedName = bew.users
+        ? `${bew.users.first_name ?? ''} ${bew.users.last_name?.charAt(0) ?? ''}.`.trim()
+        : 'Unbekannt';
 
       return {
         id: bew.id,
@@ -118,8 +117,7 @@ function HeuteContent() {
       if (gerichtName) {
         const neueDurchschnitte = avgStars.filter(s => typeof s.stars === 'number');
         const avg =
-          neueDurchschnitte.reduce((sum, val) => sum + val.stars, 0) /
-          neueDurchschnitte.length;
+          neueDurchschnitte.reduce((sum, val) => sum + val.stars, 0) / neueDurchschnitte.length;
 
         const neueBewertung: Bewertung = {
           gericht_name: gerichtName,
@@ -175,9 +173,9 @@ function HeuteContent() {
           .order('created_at', { ascending: false });
 
         const kommentare: Kommentar[] = (gerichtBews || []).map((bew) => {
-          const firstName = bew.users?.first_name || '';
-          const lastInitial = bew.users?.last_name?.charAt(0) || '';
-          const formattedName = `${firstName} ${lastInitial}.`.trim();
+          const formattedName = bew.users
+            ? `${bew.users.first_name ?? ''} ${bew.users.last_name?.charAt(0) ?? ''}.`.trim()
+            : 'Unbekannt';
 
           return {
             id: bew.id,
@@ -255,7 +253,6 @@ function HeuteContent() {
           </Text>
         ) : (
           gerichte.map((gericht) => {
-            const isActive = ausgewählt === gericht.id;
             const gerichtBewertungen = bewertungen.filter(
               (b) => b.gericht_name === gericht.name
             );
@@ -267,16 +264,18 @@ function HeuteContent() {
                 delay={gericht.id * 100}
                 style={{ marginBottom: 16 }}
               >
-                <TouchableOpacity onPress={() => {
-                  router.push({
-                    pathname: '/gerichtDetail',
-                    params: {
-                      name: gericht.name,
-                      source: 'heute',
-                      color: themeColor.accent2, // 🟠 Orange für „Heute“
-                    },
-                  });
-                }}>
+                <TouchableOpacity
+                  onPress={() =>
+                    router.push({
+                      pathname: '/gerichtDetail',
+                      params: {
+                        name: gericht.name,
+                        source: 'heute',
+                        color: themeColor.accent2, // z. B. orange für Heute
+                      },
+                    })
+                  }
+                >
                   <Card
                     name={gericht.name}
                     anzeigename={gericht.anzeigename}
@@ -292,16 +291,6 @@ function HeuteContent() {
                     onAlertPress={() => handleToggleAlert(gericht.id)}
                   />
                 </TouchableOpacity>
-
-                {isActive && (
-                  <GerichtBewertungHeute
-                    gerichtId={gericht.id}
-                    gerichtName={gericht.name}
-                    kommentare={gericht.kommentare}
-                    userId={userId}
-                    onUpdate={() => fetchKommentareFürGericht(gericht.id)}
-                  />
-                )}
               </Animatable.View>
             );
           })

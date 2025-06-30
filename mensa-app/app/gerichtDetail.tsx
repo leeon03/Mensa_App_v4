@@ -20,28 +20,25 @@ import ZutatenTabelle from '../components/gerichtDetail/zutatenTabelle';
 import GerichtHeader from '../components/gerichtDetail/gerichtHeader';
 
 const TAGS = [
-  { key: 'vegan', label: 'Vegan', icon: <MaterialCommunityIcons name="leaf" size={14} color="#000" />, color: '#A5D6A7' },
-  { key: 'vegetarisch', label: 'Vegetarisch', icon: <MaterialCommunityIcons name="food-apple" size={14} color="#000" />, color: '#C5E1A5' },
-  { key: 'leicht', label: 'Leicht', icon: <Ionicons name="sunny" size={14} color="#000" />, color: '#FFF59D' },
-  { key: 'glutenfrei', label: 'Glutenfrei', icon: <Ionicons name="ban" size={14} color="#000" />, color: '#FFE082' },
-  { key: 'scharf', label: 'Scharf', icon: <MaterialCommunityIcons name="chili-hot" size={14} color="#000" />, color: '#EF9A9A' },
-  { key: 'fleischhaltig', label: 'Fleischhaltig', icon: <MaterialCommunityIcons name="cow" size={14} color="#000" />, color: '#E57373' },
-  { key: 'fischhaltig', label: 'Fischhaltig', icon: <MaterialCommunityIcons name="fish" size={14} color="#000" />, color: '#81D4FA' },
-  { key: 'beliebt', label: 'Beliebt', icon: <Ionicons name="flame" size={14} color="#000" />, color: '#F48FB1' },
-  { key: 'favorit', label: 'Favorit', icon: <Ionicons name="heart" size={14} color="#000" />, color: '#F06292' },
-  { key: 'erinnerung', label: 'Erinnerung', icon: <Ionicons name="notifications" size={14} color="#000" />, color: '#B0BEC5' },
+  { key: 'vegan', label: 'Vegan', icon: 'leaf', color: '#A5D6A7' },
+  { key: 'vegetarisch', label: 'Vegetarisch', icon: 'food-apple', color: '#C5E1A5' },
+  { key: 'leicht', label: 'Leicht', icon: 'sunny', color: '#FFF59D' },
+  { key: 'glutenfrei', label: 'Glutenfrei', icon: 'ban', color: '#FFE082' },
+  { key: 'scharf', label: 'Scharf', icon: 'chili-hot', color: '#EF9A9A' },
+  { key: 'fleischhaltig', label: 'Fleischhaltig', icon: 'cow', color: '#E57373' },
+  { key: 'fischhaltig', label: 'Fischhaltig', icon: 'fish', color: '#81D4FA' },
+  { key: 'beliebt', label: 'Beliebt', icon: 'flame', color: '#F48FB1' },
+  { key: 'favorit', label: 'Favorit', icon: 'heart', color: '#F06292' },
+  { key: 'erinnerung', label: 'Erinnerung', icon: 'notifications', color: '#B0BEC5' },
 ];
 
-const getPastellBackground = (baseColor: string, theme: string) => {
-  const lighten = (hex: string, percent: number) => {
-    const num = parseInt(hex.replace('#', ''), 16);
-    const amt = Math.round(2.55 * percent);
-    const R = (num >> 16) + amt;
-    const G = ((num >> 8) & 0x00FF) + amt;
-    const B = (num & 0x0000FF) + amt;
-    return `rgb(${Math.min(Math.max(R, 0),255)},${Math.min(Math.max(G, 0),255)},${Math.min(Math.max(B, 0),255)})`;
-  };
-  return lighten(baseColor, theme === 'dark' ? -10 : 40);
+const getPastellBackground = (hex: string, theme: string) => {
+  const num = parseInt(hex.replace('#', ''), 16);
+  const amt = theme === 'dark' ? -20 : 40;
+  const R = Math.min(255, Math.max(0, (num >> 16) + amt));
+  const G = Math.min(255, Math.max(0, ((num >> 8) & 0x00ff) + amt));
+  const B = Math.min(255, Math.max(0, (num & 0x0000ff) + amt));
+  return `rgb(${R},${G},${B})`;
 };
 
 export default function GerichtDetailScreen() {
@@ -58,23 +55,18 @@ export default function GerichtDetailScreen() {
 
     const loadGericht = async () => {
       setLoading(true);
-      const [{ data: gerichtData, error: gerichtError }, { data: bewertungenData, error: bewertungenError }] =
-        await Promise.all([
-          supabase.from('gerichte').select('*').eq('name', name).order('datum', { ascending: false }).limit(1),
-          supabase.from('bewertungen').select('*').eq('gericht_name', name),
-        ]);
+      const [{ data: gerichtData }, { data: bewertungenData }] = await Promise.all([
+        supabase.from('gerichte').select('*').eq('name', name).order('datum', { ascending: false }).limit(1),
+        supabase.from('bewertungen').select('*').eq('gericht_name', name),
+      ]);
 
-      if (gerichtError || !gerichtData || gerichtData.length === 0) {
-        console.error('Fehler beim Laden des Gerichts:', gerichtError);
+      if (!gerichtData || gerichtData.length === 0) {
         setGericht(null);
       } else {
         setGericht(gerichtData[0]);
       }
 
-      if (!bewertungenError && bewertungenData) {
-        setBewertungen(bewertungenData);
-      }
-
+      setBewertungen(bewertungenData || []);
       setLoading(false);
     };
 
@@ -121,10 +113,15 @@ export default function GerichtDetailScreen() {
               {gericht.tags.map((tag: string) => {
                 const tagData = TAGS.find(t => t.key === tag);
                 if (!tagData) return null;
+
+                const IconComponent = ['sunny', 'ban', 'flame', 'heart', 'notifications'].includes(tagData.icon)
+                  ? Ionicons
+                  : MaterialCommunityIcons;
+
                 return (
-                  <View key={tag} style={[styles.tagChip, { backgroundColor: tagData.color }]}>
-                    {tagData.icon}
-                    <Text style={styles.chipText}>{tagData.label}</Text>
+                  <View key={tag} style={[styles.tagChip, { backgroundColor: getPastellBackground(tagData.color, theme) }]}>
+                    <IconComponent name={tagData.icon as any} size={14} color={themeColor.text} />
+                    <Text style={[styles.chipText, { color: themeColor.text }]}>{tagData.label}</Text>
                   </View>
                 );
               })}
@@ -246,7 +243,6 @@ const styles = StyleSheet.create({
   },
   chipText: {
     fontSize: 12,
-    color: '#000',
     marginLeft: 6,
   },
 });

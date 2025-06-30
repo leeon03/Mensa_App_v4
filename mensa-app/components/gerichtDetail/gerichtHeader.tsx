@@ -1,5 +1,3 @@
-// components/gerichtDetail/GerichtHeader.tsx
-
 import React from 'react';
 import {
   View,
@@ -8,8 +6,10 @@ import {
   StyleSheet,
   TouchableOpacity,
   Linking,
+  useColorScheme,
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Colors } from '../../constants/Colors';
 
 interface Bewertung {
   stars: number;
@@ -30,19 +30,28 @@ interface GerichtHeaderProps {
 }
 
 const TAGS = [
-  { key: 'vegan', label: 'Vegan', icon: <MaterialCommunityIcons name="leaf" size={14} color="#000" />, color: '#A5D6A7' },
-  { key: 'vegetarisch', label: 'Vegetarisch', icon: <MaterialCommunityIcons name="food-apple" size={14} color="#000" />, color: '#C5E1A5' },
-  { key: 'leicht', label: 'Leicht', icon: <Ionicons name="sunny" size={14} color="#000" />, color: '#FFF59D' },
-  { key: 'glutenfrei', label: 'Glutenfrei', icon: <Ionicons name="ban" size={14} color="#000" />, color: '#FFE082' },
-  { key: 'scharf', label: 'Scharf', icon: <MaterialCommunityIcons name="chili-hot" size={14} color="#000" />, color: '#EF9A9A' },
-  { key: 'fleischhaltig', label: 'Fleischhaltig', icon: <MaterialCommunityIcons name="cow" size={14} color="#000" />, color: '#E57373' },
-  { key: 'fischhaltig', label: 'Fischhaltig', icon: <MaterialCommunityIcons name="fish" size={14} color="#000" />, color: '#81D4FA' },
-  { key: 'beliebt', label: 'Beliebt', icon: <Ionicons name="flame" size={14} color="#000" />, color: '#F48FB1' },
-  { key: 'favorit', label: 'Favorit', icon: <Ionicons name="heart" size={14} color="#000" />, color: '#F06292' },
-  { key: 'erinnerung', label: 'Erinnerung', icon: <Ionicons name="notifications" size={14} color="#000" />, color: '#B0BEC5' },
+  { key: 'vegan', label: 'Vegan', icon: 'leaf', color: '#A5D6A7' },
+  { key: 'vegetarisch', label: 'Vegetarisch', icon: 'food-apple', color: '#C5E1A5' },
+  { key: 'leicht', label: 'Leicht', icon: 'sunny', color: '#FFF59D' },
+  { key: 'glutenfrei', label: 'Glutenfrei', icon: 'ban', color: '#FFE082' },
+  { key: 'scharf', label: 'Scharf', icon: 'chili-hot', color: '#EF9A9A' },
+  { key: 'fleischhaltig', label: 'Fleischhaltig', icon: 'cow', color: '#E57373' },
+  { key: 'fischhaltig', label: 'Fischhaltig', icon: 'fish', color: '#81D4FA' },
+  { key: 'beliebt', label: 'Beliebt', icon: 'flame', color: '#F48FB1' },
+  { key: 'favorit', label: 'Favorit', icon: 'heart', color: '#F06292' },
+  { key: 'erinnerung', label: 'Erinnerung', icon: 'notifications', color: '#B0BEC5' },
 ];
 
 const fallbackImage = 'https://via.placeholder.com/400x200?text=Kein+Bild';
+
+const getPastellBackground = (hex: string, theme: string) => {
+  const num = parseInt(hex.replace('#', ''), 16);
+  const amt = theme === 'dark' ? -20 : 40;
+  const R = Math.min(255, Math.max(0, (num >> 16) + amt));
+  const G = Math.min(255, Math.max(0, ((num >> 8) & 0x00ff) + amt));
+  const B = Math.min(255, Math.max(0, (num & 0x0000ff) + amt));
+  return `rgb(${R},${G},${B})`;
+};
 
 const GerichtHeader: React.FC<GerichtHeaderProps> = ({
   bild_url,
@@ -56,6 +65,9 @@ const GerichtHeader: React.FC<GerichtHeaderProps> = ({
   preis,
   paypalLink,
 }) => {
+  const theme = useColorScheme() || 'light';
+  const themeColor = Colors[theme];
+
   const filtered = bewertungen.filter(b => b.gericht_name === name);
   const avg =
     filtered.length > 0
@@ -64,7 +76,7 @@ const GerichtHeader: React.FC<GerichtHeaderProps> = ({
   const rounded = Math.round(avg);
 
   const renderStars = () => (
-    <View style={[styles.ratingRow]}>
+    <View style={styles.ratingRow}>
       {Array.from({ length: 5 }, (_, i) => (
         <Ionicons
           key={i}
@@ -88,11 +100,11 @@ const GerichtHeader: React.FC<GerichtHeaderProps> = ({
         source={{ uri: bild_url || fallbackImage }}
         style={styles.image}
       />
-      <View style={styles.card}>
+      <View style={[styles.card, { backgroundColor: themeColor.card }]}>
         <Text style={[styles.title, { color: textColor }]}>{anzeigename}</Text>
 
         {kategorie && (
-          <View style={styles.kategorieBadge}>
+          <View style={[styles.kategorieBadge, { backgroundColor: themeColor.surface }]}>
             <Text style={[styles.kategorieText, { color: textColor }]}>
               {kategorie.toUpperCase()}
             </Text>
@@ -105,18 +117,25 @@ const GerichtHeader: React.FC<GerichtHeaderProps> = ({
 
         {renderStars()}
 
-       {Array.isArray(tags) && tags.length > 0 && (
+        {Array.isArray(tags) && tags.length > 0 && (
           <View style={styles.tagsContainer}>
             {tags.map(tag => {
               const tagData = TAGS.find(t => t.key === tag);
               if (!tagData) return null;
+
+              const IconComponent = ['sunny', 'ban', 'flame', 'heart', 'notifications'].includes(tagData.icon)
+                ? Ionicons
+                : MaterialCommunityIcons;
+
               return (
                 <View
                   key={tag}
-                  style={[styles.tagChip, { backgroundColor: tagData.color }]}
+                  style={[styles.tagChip, {
+                    backgroundColor: getPastellBackground(tagData.color, theme),
+                  }]}
                 >
-                  {tagData.icon}
-                  <Text style={styles.chipText}>{tagData.label}</Text>
+                  <IconComponent name={tagData.icon as any} size={14} color={themeColor.text} />
+                  <Text style={[styles.chipText, { color: themeColor.text }]}>{tagData.label}</Text>
                 </View>
               );
             })}
@@ -131,7 +150,7 @@ const GerichtHeader: React.FC<GerichtHeaderProps> = ({
 
         {paypalLink && (
           <TouchableOpacity
-            style={styles.paypalButton}
+            style={[styles.paypalButton, { backgroundColor: themeColor.accent2 }]}
             onPress={() => Linking.openURL(paypalLink)}
           >
             <Ionicons
@@ -160,7 +179,6 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   card: {
-    backgroundColor: '#fff',
     padding: 16,
     borderRadius: 16,
     gap: 12,
@@ -176,7 +194,6 @@ const styles = StyleSheet.create({
   },
   kategorieBadge: {
     alignSelf: 'flex-start',
-    backgroundColor: '#f0f0f0',
     borderRadius: 999,
     paddingHorizontal: 10,
     paddingVertical: 4,
@@ -213,7 +230,6 @@ const styles = StyleSheet.create({
   },
   chipText: {
     fontSize: 12,
-    color: '#000',
     marginLeft: 6,
   },
   preis: {
@@ -227,7 +243,6 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 16,
     borderRadius: 24,
-    backgroundColor: '#0070BA',
     alignSelf: 'flex-start',
   },
   paypalButtonText: {

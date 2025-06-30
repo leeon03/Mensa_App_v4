@@ -1,12 +1,11 @@
-import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, useColorScheme, Alert, Animated, Easing } from 'react-native';
+import React, { useState, useMemo } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, useColorScheme, Alert } from 'react-native';
 import KommentarBox from './KommentarBox';
 import ChatBubble from './ChatBubble';
 import * as Animatable from 'react-native-animatable';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../../constants/Colors';
 import { supabase } from '../../constants/supabase';
-import { useRouter } from 'expo-router';
 
 type Kommentar = {
   id: number;
@@ -19,8 +18,7 @@ type Kommentar = {
 };
 
 type Props = {
-  gerichtId: number;
-  gerichtName: string;
+  gerichtId: number; // ✅ geändert von string zu number
   kommentare: Kommentar[];
   userId: string | null;
   onUpdate: () => void;
@@ -28,17 +26,14 @@ type Props = {
 
 export default function GerichtBewertungHeute({
   gerichtId,
-  gerichtName,
   kommentare,
   userId,
   onUpdate,
 }: Props) {
   const scheme = useColorScheme() || 'light';
   const colors = Colors[scheme];
-  const router = useRouter();
 
   const [localKommentare, setLocalKommentare] = useState<Kommentar[]>([]);
-  const pulseAnim = useRef(new Animated.Value(1)).current;
 
   const hatBereitsBewertet = useMemo(() => {
     return [...kommentare, ...localKommentare].some(k => k.own);
@@ -47,9 +42,11 @@ export default function GerichtBewertungHeute({
   const alleKommentare = useMemo(() => {
     const kommentarKey = (k: Kommentar) => `${k.text.trim()}__${k.stars}`;
     const existingKeys = new Set(kommentare.map(kom => kommentarKey(kom)));
+
     const neueKommentare = localKommentare.filter(
       kom => !existingKeys.has(kommentarKey(kom))
     );
+
     return [...neueKommentare, ...kommentare].slice(0, 15);
   }, [localKommentare, kommentare]);
 
@@ -86,71 +83,30 @@ export default function GerichtBewertungHeute({
     }
   };
 
-  useEffect(() => {
-    pulseThreeTimes();
-  }, []);
-
-  const pulseThreeTimes = () => {
-    Animated.sequence([
-      Animated.timing(pulseAnim, {
-        toValue: 1.05,
-        duration: 300,
-        easing: Easing.inOut(Easing.ease),
-        useNativeDriver: true,
-      }),
-      Animated.timing(pulseAnim, {
-        toValue: 1,
-        duration: 300,
-        easing: Easing.inOut(Easing.ease),
-        useNativeDriver: true,
-      }),
-      Animated.timing(pulseAnim, {
-        toValue: 1.05,
-        duration: 300,
-        easing: Easing.inOut(Easing.ease),
-        useNativeDriver: true,
-      }),
-      Animated.timing(pulseAnim, {
-        toValue: 1,
-        duration: 300,
-        easing: Easing.inOut(Easing.ease),
-        useNativeDriver: true,
-      }),
-      Animated.timing(pulseAnim, {
-        toValue: 1.05,
-        duration: 300,
-        easing: Easing.inOut(Easing.ease),
-        useNativeDriver: true,
-      }),
-      Animated.timing(pulseAnim, {
-        toValue: 1,
-        duration: 300,
-        easing: Easing.inOut(Easing.ease),
-        useNativeDriver: true,
-      }),
-    ]).start();
-  };
-
   return (
     <Animatable.View
       animation="fadeIn"
       duration={400}
       style={[styles.detailBox, { backgroundColor: colors.card, shadowColor: colors.text }]}
     >
-      <Text style={[styles.detailTitle, { color: colors.text }]}>Deine Bewertung</Text>
+      <Text style={[styles.detailTitle, { color: colors.text }]}>
+        Deine Bewertung
+      </Text>
 
-      {/* Dezenter Button mit Info-Icon */}
-      <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
-        <TouchableOpacity
-          onPress={() => router.push({ pathname: '/gerichtDetail', params: { name: gerichtName } })}
-          style={[styles.detailButton, { backgroundColor: colors.accent2 }]}
+      {hatBereitsBewertet ? (
+        <Animatable.View
+          animation="fadeInDown"
+          duration={400}
+          style={[styles.infoBox, { borderColor: colors.accent2 }]}
         >
-          <Ionicons name="information-circle-outline" size={18} color="#fff" style={{ marginRight: 6 }} />
-          <Text style={styles.detailButtonText}>Mehr Details</Text>
-        </TouchableOpacity>
-      </Animated.View>
-
-      <KommentarBox onSubmit={handleKommentarSubmit} disabled={hatBereitsBewertet} />
+          <Ionicons name="checkmark-circle" size={20} color={colors.accent1} style={{ marginRight: 6 }} />
+          <Text style={[styles.infoText, { color: colors.text }]}>
+            Du hast dieses Gericht bereits bewertet. Vielen Dank!
+          </Text>
+        </Animatable.View>
+      ) : (
+        <KommentarBox onSubmit={handleKommentarSubmit} disabled={hatBereitsBewertet} />
+      )}
 
       <Text style={[styles.detailTitle, { color: colors.text }]}>Kommentare</Text>
 
@@ -196,18 +152,18 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     marginBottom: 4,
   },
-  detailButton: {
+  infoBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    alignSelf: 'flex-start',
-    paddingVertical: 6,
-    paddingHorizontal: 12,
+    borderWidth: 1.5,
+    padding: 10,
     borderRadius: 8,
-    marginBottom: 6,
+    marginBottom: 10,
   },
-  detailButtonText: {
-    color: '#fff',
-    fontWeight: '600',
-    fontSize: 14,
+  infoText: {
+    fontSize: 15,
+    fontWeight: '500',
+    flex: 1,
+    flexWrap: 'wrap',
   },
 });
