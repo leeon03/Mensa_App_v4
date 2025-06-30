@@ -58,18 +58,35 @@ export default function GerichtDetailScreen() {
     const loadData = async () => {
       setLoading(true);
 
-      const [{ data: gerichtData }, { data: bewertungenData }, { data: session }] = await Promise.all([
+      const [{ data: gerichtData }, { data: session }] = await Promise.all([
         supabase.from('gerichte').select('*').eq('name', name).order('datum', { ascending: false }).limit(1),
-        supabase.from('bewertungen').select('*').eq('gericht_name', name),
         supabase.auth.getSession(),
       ]);
 
       if (gerichtData && gerichtData.length > 0) {
-        setGericht(gerichtData[0]);
-      }
+        const gericht = gerichtData[0];
+        setGericht(gericht);
 
-      if (bewertungenData) {
-        setBewertungen(bewertungenData);
+        const { data: bewertungenData, error } = await supabase
+          .from('bewertungen')
+          .select('*')
+          .eq('gericht_id', gericht.id); // ✅ korrekt nach ID filtern
+
+        if (error) {
+          console.error('Fehler beim Laden der Bewertungen:', error);
+        } else {
+          console.log('Bewertungen geladen:', bewertungenData); // 🔍 Debug
+
+          const mapped = bewertungenData.map((b) => ({
+            id: b.id,
+            user: b.user_name || 'Unbekannt',
+            text: b.kommentar || '', // ✅ Mapping von `kommentar` → `text`
+            stars: b.stars,
+            avatarUri: null,
+            timestamp: b.created_at || '',
+          }));
+          setBewertungen(mapped);
+        }
       }
 
       if (session?.session?.user?.id) {
@@ -83,11 +100,26 @@ export default function GerichtDetailScreen() {
   }, [name]);
 
   const refreshBewertungen = async () => {
-    if (!gericht?.name) return;
-    const { data } = await supabase.from('bewertungen').select('*').eq('gericht_name', gericht.name);
-    if (data) {
-      setBewertungen(data);
+    if (!gericht?.id) return;
+    const { data, error } = await supabase
+      .from('bewertungen')
+      .select('*')
+      .eq('gericht_id', gericht.id);
+
+    if (error) {
+      console.error('Fehler beim Refresh:', error);
+      return;
     }
+
+    const mapped = data.map((b) => ({
+      id: b.id,
+      user: b.user_name || 'Unbekannt',
+      text: b.kommentar || '',
+      stars: b.stars,
+      avatarUri: null,
+      timestamp: b.created_at || '',
+    }));
+    setBewertungen(mapped);
   };
 
   const baseColor = typeof color === 'string' ? color : themeColor.accent2;
@@ -182,7 +214,7 @@ export default function GerichtDetailScreen() {
             kommentare={bewertungen}
             userId={userId}
             onUpdate={refreshBewertungen}
-            buttonColor={baseColor} // <--- NEU HINZUGEFÜGT
+            buttonColor={baseColor}
           />
         </View>
       </ScrollView>
