@@ -22,7 +22,7 @@ type Props = {
   kommentare: Kommentar[];
   userId: string | null;
   onUpdate: () => void;
-  buttonColor?: string; // verwendet für Styling
+  buttonColor?: string;
 };
 
 export default function GerichtBewertungHeute({
@@ -43,8 +43,12 @@ export default function GerichtBewertungHeute({
   }, [kommentare, localKommentare]);
 
   const alleKommentare = useMemo(() => {
-    const kommentarKey = (k: Kommentar) => `${k.text.trim()}__${k.stars}`;
-    const existingKeys = new Set(kommentare.map(kom => kommentarKey(kom)));
+    const kommentarKey = (k: Kommentar) =>
+      `${(k.text || '').trim()}__${k.stars}`;
+
+    const existingKeys = new Set(
+      kommentare.map(kom => kommentarKey(kom))
+    );
 
     const neueKommentare = localKommentare.filter(
       kom => !existingKeys.has(kommentarKey(kom))
@@ -87,22 +91,27 @@ export default function GerichtBewertungHeute({
   };
 
   return (
-    <Animatable.View
-      animation="fadeIn"
-      duration={400}
-      style={{ width: '100%' }}
-    >
+    <Animatable.View animation="fadeIn" duration={400} style={{ width: '100%' }}>
       <Text style={[styles.heading, { color: colors.text }]}>Deine Bewertung</Text>
 
       {hatBereitsBewertet ? (
         <View style={[styles.infoBox, { borderColor: highlight }]}>
-          <Ionicons name="checkmark-circle" size={20} color={highlight} style={{ marginRight: 6 }} />
+          <Ionicons
+            name="checkmark-circle"
+            size={20}
+            color={highlight}
+            style={{ marginRight: 6 }}
+          />
           <Text style={[styles.infoText, { color: colors.text }]}>
             Du hast dieses Gericht bereits bewertet. Vielen Dank!
           </Text>
         </View>
       ) : (
-        <KommentarBox onSubmit={handleKommentarSubmit} disabled={hatBereitsBewertet} buttonColor={highlight} />
+        <KommentarBox
+          onSubmit={handleKommentarSubmit}
+          disabled={hatBereitsBewertet}
+          buttonColor={highlight}
+        />
       )}
 
       <Text style={[styles.heading, { color: colors.text }]}>Kommentare</Text>
@@ -118,13 +127,13 @@ export default function GerichtBewertungHeute({
             delay={index * 100}
           >
             <ChatBubble
-              user={kommentar.user}
-              text={kommentar.text}
+              user={kommentar.user || 'Unbekannt'}
+              text={kommentar.text || ''}
               stars={kommentar.stars}
               own={kommentar.own}
               avatarUri={kommentar.avatarUri}
               timestamp={kommentar.timestamp ?? 'Gerade eben'}
-              highlightColor={highlight} // NEU: Farbangleichung
+              highlightColor={highlight}
             />
           </Animatable.View>
         ))
