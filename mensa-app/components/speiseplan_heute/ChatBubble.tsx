@@ -31,15 +31,15 @@ export default function ChatBubble({
   loading = false,
   own = false,
 }: Props) {
-  const theme = (useColorScheme() || 'light') as keyof typeof Colors;
+  const theme = useColorScheme() || 'light';
   const themeColor = Colors[theme];
   const isDark = theme === 'dark';
 
   const bubbleColors = {
-    backgroundColor: own ? themeColor.accent2 : isDark ? '#1e1e1e' : themeColor.surface,
-    textColor: own ? '#fff' : themeColor.text,
-    starColor: own ? (isDark ? '#111' : '#fff') : themeColor.accent2,
-    borderColor: isDark ? '#444' : '#ccc',
+    backgroundColor: own ? themeColor.accent2 : themeColor.surface,
+    textColor: own ? themeColor.buttonText : themeColor.text,
+    starColor: own ? themeColor.buttonText : themeColor.accent2,
+    borderColor: isDark ? '#444' : '#ddd',
   };
 
   const initials = user
@@ -66,7 +66,7 @@ export default function ChatBubble({
     >
       {!own && avatar}
 
-      <View style={{ maxWidth: '85%', position: 'relative' }}>
+      <View style={{ maxWidth: '85%' }}>
         {!own && (
           <Text style={[styles.userName, { color: themeColor.text }]}>
             {displayName}
@@ -121,7 +121,7 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     marginVertical: 6,
-    paddingHorizontal: 10,
+    paddingHorizontal: 16,
   },
   alignLeft: {
     justifyContent: 'flex-start',
@@ -137,14 +137,14 @@ const styles = StyleSheet.create({
     marginLeft: 4,
   },
   bubble: {
-    borderRadius: 18,
+    borderRadius: 16,
     borderWidth: 1,
     paddingVertical: 10,
     paddingHorizontal: 14,
     shadowColor: '#000',
-    shadowOpacity: 0.06,
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 3,
+    shadowOpacity: 0.05,
+    shadowOffset: { width: 0, height: 1 },
+    shadowRadius: 2,
     elevation: 2,
   },
   starsWrapper: {

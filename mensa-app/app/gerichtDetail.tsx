@@ -18,6 +18,7 @@ import { supabase } from '../constants/supabase';
 import NaehrwertBox from '../components/gerichtDetail/naerwerteBox';
 import ZutatenTabelle from '../components/gerichtDetail/zutatenTabelle';
 import GerichtHeader from '../components/gerichtDetail/gerichtHeader';
+import GerichtBewertungHeute from '../components/speiseplan_heute/gerichtBewertungHeute';
 
 const TAGS = [
   { key: 'vegan', label: 'Vegan', icon: 'leaf', color: '#A5D6A7' },
@@ -49,29 +50,45 @@ export default function GerichtDetailScreen() {
   const [gericht, setGericht] = useState<any>(null);
   const [bewertungen, setBewertungen] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [userId, setUserId] = useState<string | null>(null);
 
   useEffect(() => {
     if (typeof name !== 'string') return;
 
-    const loadGericht = async () => {
+    const loadData = async () => {
       setLoading(true);
-      const [{ data: gerichtData }, { data: bewertungenData }] = await Promise.all([
+
+      const [{ data: gerichtData }, { data: bewertungenData }, { data: session }] = await Promise.all([
         supabase.from('gerichte').select('*').eq('name', name).order('datum', { ascending: false }).limit(1),
         supabase.from('bewertungen').select('*').eq('gericht_name', name),
+        supabase.auth.getSession(),
       ]);
 
-      if (!gerichtData || gerichtData.length === 0) {
-        setGericht(null);
-      } else {
+      if (gerichtData && gerichtData.length > 0) {
         setGericht(gerichtData[0]);
       }
 
-      setBewertungen(bewertungenData || []);
+      if (bewertungenData) {
+        setBewertungen(bewertungenData);
+      }
+
+      if (session?.session?.user?.id) {
+        setUserId(session.session.user.id);
+      }
+
       setLoading(false);
     };
 
-    loadGericht();
+    loadData();
   }, [name]);
+
+  const refreshBewertungen = async () => {
+    if (!gericht?.name) return;
+    const { data } = await supabase.from('bewertungen').select('*').eq('gericht_name', gericht.name);
+    if (data) {
+      setBewertungen(data);
+    }
+  };
 
   const baseColor = typeof color === 'string' ? color : themeColor.accent2;
   const boxColor = getPastellBackground(baseColor, theme);
@@ -159,6 +176,14 @@ export default function GerichtDetailScreen() {
 
             <ZutatenTabelle zutaten={gericht.zutaten} />
           </View>
+
+          <GerichtBewertungHeute
+            gerichtId={gericht.id}
+            kommentare={bewertungen}
+            userId={userId}
+            onUpdate={refreshBewertungen}
+            buttonColor={baseColor} // <--- NEU HINZUGEFÜGT
+          />
         </View>
       </ScrollView>
     </SafeAreaView>
