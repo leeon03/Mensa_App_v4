@@ -18,9 +18,9 @@ export default function AdminDashboard() {
 
   const links = [
     {
-      icon: 'restaurant-outline',
-      label: 'Gerichte verwalten',
-      route: '/adminGerichte',
+      icon: 'grid-outline',
+      label: 'Gerichte verwalten (neu)',
+      route: '/adminGerichte', // 👉 aktualisierte Seite mit Cards
     },
     {
       icon: 'add-circle-outline',
