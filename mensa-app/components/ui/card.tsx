@@ -33,13 +33,10 @@ type CardProps = {
   isAlert: boolean;
   onFavoritePress: () => void;
   onAlertPress: () => void;
-  onPress?: () => void; // Neu: Optional für Navigation
+  onPress?: () => void;
 };
 
-const TAGS: Record<
-  string,
-  { label: string; color: string; icon: React.ReactNode }
-> = {
+const TAGS: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
   vegan: {
     label: 'Vegan',
     color: '#A5D6A7',
@@ -161,6 +158,8 @@ const Card: React.FC<CardProps> = ({
     }).format(value);
   };
 
+  const hasImage = bild_url && bild_url.trim() !== '';
+
   const CardContent = (
     <View
       style={[
@@ -169,7 +168,13 @@ const Card: React.FC<CardProps> = ({
       ]}
     >
       <View style={styles.imageContainer}>
-        <Image source={{ uri: bild_url }} style={styles.image} />
+        {hasImage ? (
+          <Image source={{ uri: bild_url }} style={styles.image} />
+        ) : (
+          <View style={[styles.fallbackIconContainer, { backgroundColor: themeColor.background }]}>
+            <Ionicons name="fast-food-outline" size={48} color={themeColor.text} />
+          </View>
+        )}
         <View style={styles.iconContainer}>
           <Pressable onPress={handleFavoritePress} style={styles.iconButton}>
             <Ionicons
@@ -251,6 +256,12 @@ const styles = StyleSheet.create({
     width: '100%',
     height: 150,
     resizeMode: 'cover',
+  },
+  fallbackIconContainer: {
+    width: '100%',
+    height: 150,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   iconContainer: {
     position: 'absolute',

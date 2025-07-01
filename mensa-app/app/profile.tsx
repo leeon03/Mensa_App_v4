@@ -4,8 +4,6 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  TextInput,
-  Switch,
   LayoutAnimation,
   Alert,
   ScrollView,
@@ -19,6 +17,11 @@ import { useRouter } from 'expo-router';
 import { supabase } from '../constants/supabase';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import Avatar from '../components/Avatar';
+import * as Animatable from 'react-native-animatable';
+import ProfileSection from '../components/profile/profileSection';
+import PersonalInfoSection from '../components/profile/personalInfoSection';
+import NotificationSection from '../components/profile/notificationSection';
+import PasswordSection from '../components/profile/passwortSection';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -38,8 +41,6 @@ function ProfileContent() {
   const theme = useColorScheme() || 'light';
   const router = useRouter();
 
-  const [editOpen, setEditOpen] = useState(false);
-  const [notifyOpen, setNotifyOpen] = useState(false);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [createdAt, setCreatedAt] = useState('');
@@ -88,30 +89,6 @@ function ProfileContent() {
 
     loadUserData();
   }, []);
-
-  const toggleEdit = () => {
-    LayoutAnimation.easeInEaseOut();
-    setEditOpen(!editOpen);
-  };
-
-  const toggleNotify = () => {
-    LayoutAnimation.easeInEaseOut();
-    setNotifyOpen(!notifyOpen);
-  };
-
-  const clearStorage = () => {
-    Alert.alert('App zurücksetzen', 'Alle gespeicherten Daten wirklich löschen?', [
-      { text: 'Abbrechen', style: 'cancel' },
-      {
-        text: 'Löschen',
-        style: 'destructive',
-        onPress: async () => {
-          await AsyncStorage.clear();
-          Alert.alert('Erledigt', 'Daten wurden gelöscht.');
-        },
-      },
-    ]);
-  };
 
   const updateProfile = async () => {
     const [first_name, ...lastParts] = name.split(' ');
@@ -164,105 +141,73 @@ function ProfileContent() {
     router.replace('/');
   };
 
+  const clearStorage = () => {
+    Alert.alert('App zurücksetzen', 'Alle gespeicherten Daten wirklich löschen?', [
+      { text: 'Abbrechen', style: 'cancel' },
+      {
+        text: 'Löschen',
+        style: 'destructive',
+        onPress: async () => {
+          await AsyncStorage.clear();
+          Alert.alert('Erledigt', 'Daten wurden gelöscht.');
+        },
+      },
+    ]);
+  };
+
   return (
     <ScrollView contentContainerStyle={[styles.container, { backgroundColor: Colors[theme].background }]}>
+      <Animatable.Text
+        animation="fadeInDown"
+        duration={700}
+        delay={100}
+        style={[styles.title, { color: Colors[theme].text }]}
+      >
+        Profil
+      </Animatable.Text>
+
       <Avatar
         name={name}
         avatarUri={userAvatar}
         userId={userId}
         onUpload={(url) => setUserAvatar(url)}
       />
-      <Text style={[styles.title, { color: Colors[theme].text }]}>Dein Profil</Text>
-      <Text style={[styles.name, { color: Colors[theme].text }]}>{name}</Text>
-      <Text style={[styles.email, { color: Colors[theme].text }]}>{email}</Text>
 
-      <View style={[styles.infoBox, { backgroundColor: Colors[theme].card }]}>
-        <Text style={[styles.infoText, { color: Colors[theme].text }]}>Mitglied seit: {createdAt}</Text>
-        <Text style={[styles.infoText, { color: Colors[theme].text }]}>Favorisierte Gerichte: {favoritesCount}</Text>
-      </View>
+      <PersonalInfoSection
+        name={name}
+        email={email}
+        createdAt={createdAt}
+        favoritesCount={favoritesCount}
+      />
 
-      <TouchableOpacity onPress={toggleEdit} style={styles.button}>
-        <Text style={styles.buttonText}>📝 Profil bearbeiten</Text>
-      </TouchableOpacity>
+      <NotificationSection
+        notifyFavs={notifyFavs}
+        notifyNews={notifyNews}
+        setNotifyFavs={setNotifyFavs}
+        setNotifyNews={setNotifyNews}
+      />
 
-      {editOpen && (
-        <View style={[styles.panelModern, { backgroundColor: Colors[theme].surface, shadowColor: Colors[theme].primary }]}>
-          <Text style={[styles.panelTitle, { color: Colors[theme].text }]}>Profilinformationen</Text>
-          <TextInput
-            style={[styles.inputModern, { borderColor: Colors[theme].primary, color: Colors[theme].text }]}
-            value={name}
-            onChangeText={setName}
-            placeholder="Name"
-            placeholderTextColor="#aaa"
-          />
-          <TextInput
-            style={[styles.inputModern, { borderColor: Colors[theme].primary, color: Colors[theme].text }]}
-            value={email}
-            onChangeText={setEmail}
-            placeholder="E-Mail"
-            placeholderTextColor="#aaa"
-            keyboardType="email-address"
-          />
-          <TouchableOpacity
-            onPress={updateProfile}
-            style={[styles.saveButton, { backgroundColor: Colors[theme].primary }]}
-          >
-            <Text style={styles.saveButtonText}>💾 Änderungen speichern</Text>
-          </TouchableOpacity>
+      <PasswordSection
+        newPassword={newPassword}
+        repeatPassword={repeatPassword}
+        setNewPassword={setNewPassword}
+        setRepeatPassword={setRepeatPassword}
+        onChangePassword={handlePasswordChange}
+      />
 
-          <Text style={[styles.panelTitle, { color: Colors[theme].text, marginTop: 16 }]}>🔐 Passwort ändern</Text>
-          <TextInput
-            style={[styles.inputModern, { borderColor: Colors[theme].primary, color: Colors[theme].text }]}
-            placeholder="Neues Passwort"
-            placeholderTextColor="#aaa"
-            secureTextEntry
-            value={newPassword}
-            onChangeText={setNewPassword}
-          />
-          <TextInput
-            style={[styles.inputModern, { borderColor: Colors[theme].primary, color: Colors[theme].text }]}
-            placeholder="Neues Passwort wiederholen"
-            placeholderTextColor="#aaa"
-            secureTextEntry
-            value={repeatPassword}
-            onChangeText={setRepeatPassword}
-          />
-          <TouchableOpacity
-            onPress={handlePasswordChange}
-            style={[styles.saveButton, { backgroundColor: Colors[theme].primary }]}
-          >
-            <Text style={styles.saveButtonText}>🔁 Passwort speichern</Text>
-          </TouchableOpacity>
-        </View>
-      )}
+      <ProfileSection title="App-Verwaltung">
+        <TouchableOpacity onPress={updateProfile} style={[styles.saveButton, { backgroundColor: Colors[theme].primary }]}>
+          <Text style={styles.saveButtonText}>💾 Profil speichern</Text>
+        </TouchableOpacity>
 
-      <TouchableOpacity onPress={toggleNotify} style={styles.button}>
-        <Text style={styles.buttonText}>🔔 Benachrichtigungen verwalten</Text>
-      </TouchableOpacity>
+        <TouchableOpacity onPress={clearStorage} style={styles.resetButton}>
+          <Text style={styles.resetButtonText}>🗑️ AsyncStorage zurücksetzen</Text>
+        </TouchableOpacity>
 
-      {notifyOpen && (
-        <View style={[styles.panel, { backgroundColor: Colors[theme].surface }]}>
-          <View style={styles.switchRow}>
-            <Text style={[styles.switchLabel, { color: Colors[theme].text }]}>Bei Favoriten erinnern</Text>
-            <Switch value={notifyFavs} onValueChange={setNotifyFavs} />
-          </View>
-          <View style={styles.switchRow}>
-            <Text style={[styles.switchLabel, { color: Colors[theme].text }]}>App-Neuigkeiten</Text>
-            <Switch value={notifyNews} onValueChange={setNotifyNews} />
-          </View>
-        </View>
-      )}
-
-      <TouchableOpacity onPress={clearStorage} style={styles.resetButton}>
-        <Text style={styles.resetButtonText}>🗑️ AsyncStorage zurücksetzen</Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity
-        onPress={handleLogout}
-        style={[styles.logoutButton, { backgroundColor: Colors[theme].primary }]}
-      >
-        <Text style={styles.logoutButtonText}>🚪 Abmelden</Text>
-      </TouchableOpacity>
+        <TouchableOpacity onPress={handleLogout} style={[styles.logoutButton, { backgroundColor: Colors[theme].primary }]}>
+          <Text style={styles.logoutButtonText}>🚪 Abmelden</Text>
+        </TouchableOpacity>
+      </ProfileSection>
     </ScrollView>
   );
 }
@@ -270,47 +215,26 @@ function ProfileContent() {
 const styles = StyleSheet.create({
   container: {
     padding: 24,
-    alignItems: 'center',
   },
   title: {
     fontSize: 36,
     fontWeight: '900',
     textAlign: 'center',
-    marginBottom: 12,
+    marginBottom: 24,
     textTransform: 'uppercase',
     letterSpacing: 1.5,
   },
-  name: { fontSize: 22, fontWeight: '700', marginBottom: 4 },
-  email: { fontSize: 16, marginBottom: 20 },
-  infoBox: {
-    padding: 20,
+  saveButton: {
+    marginTop: 12,
+    padding: 14,
     borderRadius: 12,
-    width: '100%',
-    marginBottom: 20,
-  },
-  infoText: { fontSize: 16, marginBottom: 8 },
-  button: {
-    paddingVertical: 14,
-    paddingHorizontal: 20,
-    backgroundColor: '#eee',
-    borderRadius: 12,
-    marginBottom: 10,
-    width: '100%',
-  },
-  buttonText: { fontWeight: '600', textAlign: 'center', fontSize: 16 },
-  panel: {
-    width: '100%',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 20,
-  },
-  switchRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
   },
-  switchLabel: { fontSize: 16 },
+  saveButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
   resetButton: {
     marginTop: 12,
     padding: 12,
@@ -318,7 +242,10 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     alignSelf: 'center',
   },
-  resetButtonText: { color: '#000', fontWeight: 'bold' },
+  resetButtonText: {
+    color: '#000',
+    fontWeight: 'bold',
+  },
   logoutButton: {
     marginTop: 24,
     paddingVertical: 14,
@@ -332,32 +259,9 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowRadius: 4,
   },
-  logoutButtonText: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
-  panelModern: {
-    width: '100%',
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 20,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 6,
-    elevation: 3,
-  },
-  panelTitle: { fontSize: 18, fontWeight: '700', marginBottom: 12 },
-  inputModern: {
-    borderWidth: 1.5,
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
+  logoutButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
     fontSize: 16,
-    marginBottom: 14,
-    backgroundColor: 'rgba(255,255,255,0.05)',
   },
-  saveButton: {
-    marginTop: 12,
-    padding: 14,
-    borderRadius: 12,
-    alignItems: 'center',
-  },
-  saveButtonText: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
 });
