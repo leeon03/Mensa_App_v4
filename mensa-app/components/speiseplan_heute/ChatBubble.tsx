@@ -20,7 +20,7 @@ type Props = {
   avatarUri?: string;
   loading?: boolean;
   own?: boolean;
-  highlightColor?: string; // NEU
+  highlightColor?: string;
 };
 
 export default function ChatBubble({
@@ -73,11 +73,17 @@ export default function ChatBubble({
       {!own && avatar}
 
       <View style={{ maxWidth: '85%' }}>
-        {!own && (
-          <Text style={[styles.userName, { color: themeColor.text }]}>
-            {displayName}
-          </Text>
-        )}
+        <Text
+          style={[
+            styles.userName,
+            {
+              color: themeColor.text,
+              alignSelf: own ? 'flex-end' : 'flex-start',
+            },
+          ]}
+        >
+          {displayName}
+        </Text>
 
         <TouchableWithoutFeedback>
           <View
@@ -98,7 +104,15 @@ export default function ChatBubble({
               />
             </View>
 
-            <Text style={[styles.messageText, { color: bubbleColors.textColor }]}>
+            <Text
+              style={[
+                styles.messageText,
+                {
+                  color: own ? '#ffffff' : bubbleColors.textColor,
+                  textAlign: own ? 'right' : 'left',
+                },
+              ]}
+            >
               {text}
             </Text>
 
@@ -140,7 +154,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     opacity: 0.75,
     marginBottom: 4,
-    marginLeft: 4,
+    marginHorizontal: 4,
   },
   bubble: {
     borderRadius: 16,

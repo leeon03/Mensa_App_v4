@@ -1,5 +1,15 @@
 import React, { useState, useMemo } from 'react';
-import { View, Text, StyleSheet, useColorScheme, Alert } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  useColorScheme,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  TouchableWithoutFeedback,
+  Keyboard,
+} from 'react-native';
 import KommentarBox from './KommentarBox';
 import ChatBubble from './ChatBubble';
 import * as Animatable from 'react-native-animatable';
@@ -91,54 +101,62 @@ export default function GerichtBewertungHeute({
   };
 
   return (
-    <Animatable.View animation="fadeIn" duration={400} style={{ width: '100%' }}>
-      <Text style={[styles.heading, { color: colors.text }]}>Deine Bewertung</Text>
+    <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+        style={{ width: '100%' }}
+      >
+        <Animatable.View animation="fadeIn" duration={400} style={{ width: '100%' }}>
+          <Text style={[styles.heading, { color: colors.text }]}>Deine Bewertung</Text>
 
-      {hatBereitsBewertet ? (
-        <View style={[styles.infoBox, { borderColor: highlight }]}>
-          <Ionicons
-            name="checkmark-circle"
-            size={20}
-            color={highlight}
-            style={{ marginRight: 6 }}
-          />
-          <Text style={[styles.infoText, { color: colors.text }]}>
-            Du hast dieses Gericht bereits bewertet. Vielen Dank!
-          </Text>
-        </View>
-      ) : (
-        <KommentarBox
-          onSubmit={handleKommentarSubmit}
-          disabled={hatBereitsBewertet}
-          buttonColor={highlight}
-        />
-      )}
-
-      <Text style={[styles.heading, { color: colors.text }]}>Kommentare</Text>
-
-      {alleKommentare.length === 0 ? (
-        <Text style={{ color: colors.icon, marginBottom: 8 }}>Noch keine Kommentare</Text>
-      ) : (
-        alleKommentare.map((kommentar, index) => (
-          <Animatable.View
-            key={kommentar.id}
-            animation={kommentar.own ? 'fadeInRight' : 'fadeInLeft'}
-            duration={500}
-            delay={index * 100}
-          >
-            <ChatBubble
-              user={kommentar.user || 'Unbekannt'}
-              text={kommentar.text || ''}
-              stars={kommentar.stars}
-              own={kommentar.own}
-              avatarUri={kommentar.avatarUri}
-              timestamp={kommentar.timestamp ?? 'Gerade eben'}
-              highlightColor={highlight}
+          {hatBereitsBewertet ? (
+            <View style={[styles.infoBox, { borderColor: highlight }]}>
+              <Ionicons
+                name="checkmark-circle"
+                size={20}
+                color={highlight}
+                style={{ marginRight: 6 }}
+              />
+              <Text style={[styles.infoText, { color: colors.text }]}>
+                Du hast dieses Gericht bereits bewertet. Vielen Dank!
+              </Text>
+            </View>
+          ) : (
+            <KommentarBox
+              onSubmit={handleKommentarSubmit}
+              disabled={hatBereitsBewertet}
+              buttonColor={highlight}
             />
-          </Animatable.View>
-        ))
-      )}
-    </Animatable.View>
+          )}
+
+          <Text style={[styles.heading, { color: colors.text }]}>Kommentare</Text>
+
+          {alleKommentare.length === 0 ? (
+            <Text style={{ color: colors.icon, marginBottom: 8 }}>Noch keine Kommentare</Text>
+          ) : (
+            alleKommentare.map((kommentar, index) => (
+              <Animatable.View
+                key={kommentar.id}
+                animation={kommentar.own ? 'fadeInRight' : 'fadeInLeft'}
+                duration={500}
+                delay={index * 100}
+              >
+                <ChatBubble
+                  user={kommentar.user || 'Unbekannt'}
+                  text={kommentar.text || ''}
+                  stars={kommentar.stars}
+                  own={kommentar.own}
+                  avatarUri={kommentar.avatarUri}
+                  timestamp={kommentar.timestamp ?? 'Gerade eben'}
+                  highlightColor={highlight}
+                />
+              </Animatable.View>
+            ))
+          )}
+        </Animatable.View>
+      </KeyboardAvoidingView>
+    </TouchableWithoutFeedback>
   );
 }
 

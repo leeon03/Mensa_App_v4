@@ -59,9 +59,17 @@ export default function GerichtDetailScreen() {
       setLoading(true);
 
       const [{ data: gerichtData }, { data: session }] = await Promise.all([
-        supabase.from('gerichte').select('*').eq('name', name).order('datum', { ascending: false }).limit(1),
+        supabase
+          .from('gerichte')
+          .select('*')
+          .eq('name', name)
+          .order('datum', { ascending: false })
+          .limit(1),
         supabase.auth.getSession(),
       ]);
+
+      const currentUserId = session?.session?.user?.id || null;
+      if (currentUserId) setUserId(currentUserId);
 
       if (gerichtData && gerichtData.length > 0) {
         const gericht = gerichtData[0];
@@ -69,28 +77,34 @@ export default function GerichtDetailScreen() {
 
         const { data: bewertungenData, error } = await supabase
           .from('bewertungen')
-          .select('*')
-          .eq('gericht_id', gericht.id); // ✅ korrekt nach ID filtern
+          .select(`
+            id,
+            kommentar,
+            stars,
+            created_at,
+            user_id,
+            users (
+              first_name,
+              last_name,
+              avatar_data
+            )
+          `)
+          .eq('gericht_id', gericht.id);
 
         if (error) {
           console.error('Fehler beim Laden der Bewertungen:', error);
         } else {
-          console.log('Bewertungen geladen:', bewertungenData); // 🔍 Debug
-
-          const mapped = bewertungenData.map((b) => ({
+          const mapped = bewertungenData.map((b: any) => ({
             id: b.id,
-            user: b.user_name || 'Unbekannt',
-            text: b.kommentar || '', // ✅ Mapping von `kommentar` → `text`
+            user: `${b.users?.first_name ?? ''} ${b.users?.last_name ?? ''}`.trim() || 'Unbekannt',
+            text: b.kommentar || '',
             stars: b.stars,
-            avatarUri: null,
+            avatarUri: b.users?.avatar_data || null,
             timestamp: b.created_at || '',
+            own: b.user_id === currentUserId,
           }));
           setBewertungen(mapped);
         }
-      }
-
-      if (session?.session?.user?.id) {
-        setUserId(session.session.user.id);
       }
 
       setLoading(false);
@@ -100,10 +114,22 @@ export default function GerichtDetailScreen() {
   }, [name]);
 
   const refreshBewertungen = async () => {
-    if (!gericht?.id) return;
+    if (!gericht?.id || !userId) return;
+
     const { data, error } = await supabase
       .from('bewertungen')
-      .select('*')
+      .select(`
+        id,
+        kommentar,
+        stars,
+        created_at,
+        user_id,
+        users (
+          first_name,
+          last_name,
+          avatar_data
+        )
+      `)
       .eq('gericht_id', gericht.id);
 
     if (error) {
@@ -111,14 +137,16 @@ export default function GerichtDetailScreen() {
       return;
     }
 
-    const mapped = data.map((b) => ({
+    const mapped = data.map((b: any) => ({
       id: b.id,
-      user: b.user_name || 'Unbekannt',
+      user: `${b.users?.first_name ?? ''} ${b.users?.last_name ?? ''}`.trim() || 'Unbekannt',
       text: b.kommentar || '',
       stars: b.stars,
-      avatarUri: null,
+      avatarUri: b.users?.avatar_data || null,
       timestamp: b.created_at || '',
+      own: b.user_id === userId,
     }));
+
     setBewertungen(mapped);
   };
 
