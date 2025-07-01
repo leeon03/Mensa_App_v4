@@ -1,7 +1,16 @@
 import React from 'react';
-import { View, Image, TouchableOpacity, Text, Alert } from 'react-native';
+import {
+  View,
+  Image,
+  TouchableOpacity,
+  Text,
+  Alert,
+  StyleSheet,
+  useColorScheme,
+} from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { supabase } from '../constants/supabase';
+import { Colors } from '../constants/Colors';
 
 const generateFilePath = (userId: string) => `${userId}/${Date.now()}.jpg`;
 
@@ -13,6 +22,8 @@ interface AvatarProps {
 }
 
 export default function Avatar({ userId, avatarUri, onUpload, name }: AvatarProps) {
+  const theme = useColorScheme() || 'light';
+
   const handleSelectImage = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
@@ -34,7 +45,6 @@ export default function Avatar({ userId, avatarUri, onUpload, name }: AvatarProp
     }
 
     try {
-      // Base64 direkt als Data URL hochladen
       const dataUrl = `data:image/jpeg;base64,${base64}`;
 
       const { error } = await supabase.storage
@@ -55,7 +65,8 @@ export default function Avatar({ userId, avatarUri, onUpload, name }: AvatarProp
       if (publicUrl) {
         onUpload(publicUrl);
 
-        await supabase.from('users')
+        await supabase
+          .from('users')
           .update({ avatar_data: publicUrl })
           .eq('id', userId);
 
@@ -68,29 +79,56 @@ export default function Avatar({ userId, avatarUri, onUpload, name }: AvatarProp
   };
 
   return (
-    <View style={{ alignItems: 'center', marginBottom: 20 }}>
-      <TouchableOpacity onPress={handleSelectImage}>
+    <View style={styles.wrapper}>
+      <TouchableOpacity onPress={handleSelectImage} style={styles.centered}>
         {avatarUri ? (
           <Image
             source={{ uri: avatarUri }}
-            style={{ width: 100, height: 100, borderRadius: 50 }}
+            style={styles.image}
           />
         ) : (
-          <View
-            style={{
-              width: 100,
-              height: 100,
-              borderRadius: 50,
-              backgroundColor: '#ccc',
-              justifyContent: 'center',
-              alignItems: 'center',
-            }}
-          >
-            <Text style={{ fontSize: 32 }}>{name[0]}</Text>
+          <View style={styles.placeholder}>
+            <Text style={styles.placeholderText}>{name[0]}</Text>
           </View>
         )}
-        <Text style={{ marginTop: 8, color: '#888' }}>Tippen zum Ändern</Text>
+        <Text style={[styles.label, { color: Colors[theme].text }]}>Tippen zum Ändern</Text>
       </TouchableOpacity>
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  wrapper: {
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  centered: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  image: {
+    width: 110,
+    height: 110,
+    borderRadius: 55,
+    borderWidth: 2,
+    borderColor: '#ccc',
+    marginBottom: 8,
+  },
+  placeholder: {
+    width: 110,
+    height: 110,
+    borderRadius: 55,
+    backgroundColor: '#ccc',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  placeholderText: {
+    fontSize: 36,
+    color: '#444',
+  },
+  label: {
+    fontSize: 14,
+    opacity: 0.7,
+  },
+});
