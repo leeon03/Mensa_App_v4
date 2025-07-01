@@ -22,7 +22,10 @@ import NotificationSection from '../components/profile/notificationSection';
 import PasswordSection from '../components/profile/passwortSection';
 import AccountActionsSection from '../components/profile/accountActionSection';
 
-if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+if (
+  Platform.OS === 'android' &&
+  UIManager.setLayoutAnimationEnabledExperimental
+) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
@@ -51,7 +54,10 @@ function ProfileContent() {
 
   useEffect(() => {
     const loadUserData = async () => {
-      const { data: { user }, error } = await supabase.auth.getUser();
+      const {
+        data: { user },
+        error,
+      } = await supabase.auth.getUser();
 
       if (error || !user) {
         Alert.alert('Fehler beim Laden der Benutzerdaten');
@@ -138,6 +144,29 @@ function ProfileContent() {
     router.replace('/');
   };
 
+  const handleDeleteAccount = () => {
+    Alert.alert(
+      'Konto löschen',
+      'Bist du sicher? Dieser Vorgang kann nicht rückgängig gemacht werden.',
+      [
+        { text: 'Abbrechen', style: 'cancel' },
+        {
+          text: 'Löschen',
+          style: 'destructive',
+          onPress: async () => {
+            const { error } = await supabase.rpc('delete_current_user'); // sichere Methode
+            if (error) {
+              Alert.alert('Fehler', 'Konto konnte nicht gelöscht werden.');
+              return;
+            }
+            Alert.alert('Konto gelöscht', 'Du wurdest abgemeldet.');
+            router.replace('/');
+          },
+        },
+      ]
+    );
+  };
+
   const clearStorage = () => {
     Alert.alert('App zurücksetzen', 'Alle gespeicherten Daten wirklich löschen?', [
       { text: 'Abbrechen', style: 'cancel' },
@@ -153,7 +182,12 @@ function ProfileContent() {
   };
 
   return (
-    <ScrollView contentContainerStyle={[styles.container, { backgroundColor: Colors[theme].background }]}>
+    <ScrollView
+      contentContainerStyle={[
+        styles.container,
+        { backgroundColor: Colors[theme].background },
+      ]}
+    >
       <Animatable.Text
         animation="fadeInDown"
         duration={700}
@@ -191,8 +225,8 @@ function ProfileContent() {
 
       <AccountActionsSection
         onSave={updateProfile}
-        onClearStorage={clearStorage}
         onLogout={handleLogout}
+        onDeleteAccount={handleDeleteAccount}
       />
     </ScrollView>
   );

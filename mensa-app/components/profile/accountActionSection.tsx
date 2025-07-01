@@ -1,85 +1,77 @@
 import React from 'react';
 import {
-  View,
   Text,
   TouchableOpacity,
   StyleSheet,
   useColorScheme,
+  Alert,
 } from 'react-native';
-import { Colors } from '../../constants/Colors';
 import ProfileSection from '../profile/profileSection';
 
 interface Props {
   onSave: () => void;
-  onClearStorage: () => void;
   onLogout: () => void;
+  onDeleteAccount: () => void;
 }
 
 const AccountActionsSection: React.FC<Props> = ({
   onSave,
-  onClearStorage,
   onLogout,
+  onDeleteAccount,
 }) => {
   const theme = useColorScheme() || 'light';
+  const isDark = theme === 'dark';
+
+  const backgroundColor = isDark ? '#ffffff' : '#000000';
+  const textColor = isDark ? '#000000' : '#ffffff';
 
   return (
     <ProfileSection title="App-Verwaltung">
       <TouchableOpacity
         onPress={onSave}
-        style={[styles.saveButton, { backgroundColor: Colors[theme].primary }]}
+        style={[styles.button, { backgroundColor }]}
+        activeOpacity={0.9}
       >
-        <Text style={styles.buttonText}>💾 Profil speichern</Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity onPress={onClearStorage} style={styles.resetButton}>
-        <Text style={styles.resetButtonText}>🗑️ AsyncStorage zurücksetzen</Text>
+        <Text style={[styles.buttonText, { color: textColor }]}>
+          ✏️ Profil aktualisieren
+        </Text>
       </TouchableOpacity>
 
       <TouchableOpacity
         onPress={onLogout}
-        style={[styles.logoutButton, { backgroundColor: Colors[theme].primary }]}
+        style={[styles.button, { backgroundColor }]}
+        activeOpacity={0.9}
       >
-        <Text style={styles.buttonText}>🚪 Abmelden</Text>
+        <Text style={[styles.buttonText, { color: textColor }]}>
+          🚪 Abmelden
+        </Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        onPress={onDeleteAccount}
+        style={[styles.button, { backgroundColor }]}
+        activeOpacity={0.9}
+      >
+        <Text style={[styles.buttonText, { color: textColor }]}>
+          🗑 Konto löschen
+        </Text>
       </TouchableOpacity>
     </ProfileSection>
   );
 };
 
 const styles = StyleSheet.create({
-  saveButton: {
+  button: {
     marginTop: 12,
-    padding: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
     borderRadius: 12,
     alignItems: 'center',
+    width: '100%',
   },
   buttonText: {
-    color: '#fff',
-    fontWeight: 'bold',
     fontSize: 16,
-  },
-  resetButton: {
-    marginTop: 12,
-    padding: 12,
-    backgroundColor: '#ddd',
-    borderRadius: 10,
-    alignSelf: 'center',
-  },
-  resetButtonText: {
-    color: '#000',
-    fontWeight: 'bold',
-  },
-  logoutButton: {
-    marginTop: 24,
-    paddingVertical: 14,
-    paddingHorizontal: 24,
-    borderRadius: 14,
-    alignItems: 'center',
-    width: '100%',
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOpacity: 0.15,
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 4,
+    fontWeight: '600',
   },
 });
 

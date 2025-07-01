@@ -1,5 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, Switch, StyleSheet, useColorScheme, Alert } from 'react-native';
+import {
+  View,
+  Text,
+  Switch,
+  StyleSheet,
+  useColorScheme,
+  Alert,
+} from 'react-native';
 import { Colors } from '../../constants/Colors';
 import ProfileSection from '../profile/profileSection';
 import { supabase } from '../../constants/supabase';
@@ -10,11 +17,13 @@ interface Props {
 
 const NotificationSection: React.FC<Props> = ({ userId }) => {
   const theme = useColorScheme() || 'light';
+  const colorTheme = Colors[theme];
+
   const [seenIntro, setSeenIntro] = useState(false);
   const [onboardingSeen, setOnboardingSeen] = useState(false);
 
   useEffect(() => {
-    if (!userId) return; // ⛔ Skip if userId not set
+    if (!userId) return;
 
     const loadFlags = async () => {
       const { data, error } = await supabase
@@ -37,7 +46,10 @@ const NotificationSection: React.FC<Props> = ({ userId }) => {
     loadFlags();
   }, [userId]);
 
-  const updateFlags = async (field: 'seen_intro' | 'onboarding_seen', value: boolean) => {
+  const updateFlags = async (
+    field: 'seen_intro' | 'onboarding_seen',
+    value: boolean
+  ) => {
     if (!userId) return;
 
     const { error } = await supabase
@@ -53,20 +65,32 @@ const NotificationSection: React.FC<Props> = ({ userId }) => {
     if (field === 'onboarding_seen') setOnboardingSeen(value);
   };
 
+  const switchThumbColor = theme === 'dark' ? '#000000' : '#ffffff';
+  const switchTrackColor = {
+    false: colorTheme.border,
+    true: theme === 'dark' ? '#ffffff' : '#000000',
+  };
+
   return (
     <ProfileSection title="Intros ansehen">
       <View style={styles.row}>
-        <Text style={[styles.label, { color: Colors[theme].text }]}>Intro gesehen</Text>
+        <Text style={[styles.label, { color: colorTheme.text }]}>Intro gesehen</Text>
         <Switch
           value={seenIntro}
           onValueChange={(value) => updateFlags('seen_intro', value)}
+          thumbColor={switchThumbColor}
+          trackColor={switchTrackColor}
         />
       </View>
       <View style={styles.row}>
-        <Text style={[styles.label, { color: Colors[theme].text }]}>Onboarding abgeschlossen</Text>
+        <Text style={[styles.label, { color: colorTheme.text }]}>
+          Onboarding abgeschlossen
+        </Text>
         <Switch
           value={onboardingSeen}
           onValueChange={(value) => updateFlags('onboarding_seen', value)}
+          thumbColor={switchThumbColor}
+          trackColor={switchTrackColor}
         />
       </View>
     </ProfileSection>
@@ -78,7 +102,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 18,
   },
   label: {
     fontSize: 16,

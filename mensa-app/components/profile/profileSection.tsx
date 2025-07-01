@@ -8,6 +8,7 @@ import {
   useColorScheme,
 } from 'react-native';
 import { Colors } from '../../constants/Colors';
+import { Ionicons } from '@expo/vector-icons';
 
 interface Props {
   title: string;
@@ -15,7 +16,11 @@ interface Props {
   initiallyExpanded?: boolean;
 }
 
-const ProfileSection: React.FC<Props> = ({ title, children, initiallyExpanded = false }) => {
+const ProfileSection: React.FC<Props> = ({
+  title,
+  children,
+  initiallyExpanded = false,
+}) => {
   const [expanded, setExpanded] = useState(initiallyExpanded);
   const theme = useColorScheme() || 'light';
 
@@ -25,28 +30,60 @@ const ProfileSection: React.FC<Props> = ({ title, children, initiallyExpanded = 
   };
 
   return (
-    <View style={{ marginBottom: 24 }}>
+    <View style={styles.sectionContainer}>
       <TouchableOpacity
         onPress={toggleExpanded}
-        style={{
-          paddingVertical: 12,
-          paddingHorizontal: 18,
-          borderBottomWidth: StyleSheet.hairlineWidth,
-          borderBottomColor: Colors[theme].border,
-          flexDirection: 'row',
-          alignItems: 'center',
-        }}
+        style={[
+          styles.header,
+          {
+            backgroundColor: 'transparent',
+            borderColor: Colors[theme].border,
+          },
+        ]}
+        activeOpacity={0.8}
       >
-        <Text style={{ fontSize: 18, color: Colors[theme].text, fontWeight: '600' }}>
-          {expanded ? '⌄' : '›'} {title}
+        <Ionicons
+          name={expanded ? 'chevron-down' : 'chevron-forward'}
+          size={20}
+          color={Colors[theme].text}
+          style={{ marginRight: 8 }}
+        />
+        <Text style={[styles.titleText, { color: Colors[theme].text }]}>
+          {title}
         </Text>
       </TouchableOpacity>
 
       {expanded && (
-        <View style={{ paddingHorizontal: 18, paddingTop: 12 }}>{children}</View>
+        <View style={[styles.content, { backgroundColor: Colors[theme].background }]}>
+          {children}
+        </View>
       )}
     </View>
   );
 };
+
+const styles = StyleSheet.create({
+  sectionContainer: {
+    marginBottom: 16,
+    borderRadius: 12,
+    overflow: 'hidden',
+    elevation: 1,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  titleText: {
+    fontSize: 17,
+    fontWeight: '600',
+  },
+  content: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+});
 
 export default ProfileSection;
