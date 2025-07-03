@@ -7,6 +7,7 @@ import {
   Alert,
   TouchableOpacity,
   Text,
+  TextInput,
 } from 'react-native';
 import { useColorScheme } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -14,15 +15,20 @@ import * as Animatable from 'react-native-animatable';
 import { supabase } from '../constants/supabase';
 import { Colors } from '../constants/Colors';
 import Card from '../components/ui/card';
-import { Feather } from '@expo/vector-icons';
+import GridCard, { GridCardList } from '../components/admin/gridCrad';
+import { Feather, MaterialIcons, Ionicons } from '@expo/vector-icons';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import ListItem from '../components/admin/list';
 
 export default function AdminGerichte() {
   const [gerichte, setGerichte] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [longPressedId, setLongPressedId] = useState<number | null>(null);
-  const [pendingDelete, setPendingDelete] = useState<{ id: number, timer: number } | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<{ id: number; timer: number } | null>(null);
   const [countdown, setCountdown] = useState(30);
-  const timerRef = React.useRef<any>(null); // <--- Typ auf any ändern
+  const [searchText, setSearchText] = useState('');
+  const [viewMode, setViewMode] = useState<'list' | 'grid' | 'compact'>('list');
+  const timerRef = React.useRef<any>(null);
   const theme = useColorScheme() || 'light';
   const themeColor = Colors[theme];
   const router = useRouter();
@@ -44,29 +50,24 @@ export default function AdminGerichte() {
   };
 
   const deleteGericht = async (id: number) => {
-    Alert.alert(
-      'Löschen bestätigen',
-      'Willst du dieses Gericht wirklich löschen?',
-      [
-        { text: 'Abbrechen', style: 'cancel' },
-        {
-          text: 'Löschen',
-          style: 'destructive',
-          onPress: async () => {
-            const { error } = await supabase.from('gerichte').delete().eq('id', id);
-            if (error) {
-              Alert.alert('Fehler beim Löschen', error.message);
-            } else {
-              loadGerichte();
-              setLongPressedId(null);
-            }
-          },
+    Alert.alert('Löschen bestätigen', 'Willst du dieses Gericht wirklich löschen?', [
+      { text: 'Abbrechen', style: 'cancel' },
+      {
+        text: 'Löschen',
+        style: 'destructive',
+        onPress: async () => {
+          const { error } = await supabase.from('gerichte').delete().eq('id', id);
+          if (error) {
+            Alert.alert('Fehler beim Löschen', error.message);
+          } else {
+            loadGerichte();
+            setLongPressedId(null);
+          }
         },
-      ]
-    );
+      },
+    ]);
   };
 
-  // Startet den Countdown und setzt pendingDelete
   const startDeleteCountdown = (id: number) => {
     setPendingDelete({ id, timer: 30 });
     setCountdown(30);
@@ -83,7 +84,6 @@ export default function AdminGerichte() {
     }, 1000);
   };
 
-  // Löscht das Gericht wirklich
   const confirmDelete = async (id: number) => {
     setPendingDelete(null);
     setLongPressedId(null);
@@ -95,14 +95,12 @@ export default function AdminGerichte() {
     }
   };
 
-  // Undo-Funktion
   const undoDelete = () => {
     setPendingDelete(null);
     setLongPressedId(null);
     timerRef.current && clearInterval(timerRef.current);
   };
 
-  // Clean up Timer beim Unmount
   useEffect(() => {
     return () => {
       timerRef.current && clearInterval(timerRef.current);
@@ -113,97 +111,241 @@ export default function AdminGerichte() {
     loadGerichte();
   }, []);
 
+  const filteredGerichte =
+    searchText.length >= 3
+      ? gerichte.filter((gericht) =>
+          gericht.name.toLowerCase().startsWith(searchText.toLowerCase())
+        )
+      : gerichte;
+
   if (loading) {
     return (
-      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+      <SafeAreaView
+        style={[styles.container, { justifyContent: 'center', alignItems: 'center', backgroundColor: themeColor.background }]}
+      >
         <ActivityIndicator size="large" color={themeColor.accent1} />
-      </View>
+      </SafeAreaView>
     );
   }
 
   return (
-    <ScrollView style={[styles.container, { backgroundColor: themeColor.background }]}>
-      {gerichte.length === 0 ? (
-        <View style={{ alignItems: 'center', marginTop: 40 }}>
-          <Text style={{ color: themeColor.text }}>Keine Gerichte gefunden.</Text>
-        </View>
-      ) : (
-        gerichte.map((gericht) => {
-          const isLongPressed = longPressedId === gericht.id;
-          const isPendingDelete = pendingDelete?.id === gericht.id;
+    <SafeAreaView style={[styles.container, { backgroundColor: themeColor.background }]}>
+      <ScrollView keyboardShouldPersistTaps="handled">
+        <Animatable.Text
+          animation="fadeInDown"
+          duration={700}
+          delay={100}
+          style={[styles.title, { color: '#d9534f' }]}
+        >
+          GERICHTE VERWALTEN
+        </Animatable.Text>
 
-          return (
-            <Animatable.View
-              key={gericht.id}
-              animation="fadeInUp"
-              delay={gericht.id * 100}
-              style={{ marginBottom: 16 }}
-            >
-              <TouchableOpacity
-                activeOpacity={0.9}
-                onPress={() => {
-                  if (isLongPressed || isPendingDelete) {
-                    setLongPressedId(null);
-                  } else {
-                    router.push({
-                      pathname: '/adminBearbeiten',
-                      params: { id: gericht.id.toString() },
-                    });
-                  }
-                }}
-                onLongPress={() => setLongPressedId(gericht.id)}
-                disabled={isPendingDelete}
-              >
-                <View style={[
-                  styles.cardWrapper,
-                  (isLongPressed || isPendingDelete) && styles.cardLongPressed,
-                  isPendingDelete && { backgroundColor: '#FFA500' } // Orange
-                ]}>
-                  <Card
-                    name={gericht.name}
-                    anzeigename={gericht.anzeigename}
-                    beschreibung={gericht.beschreibung}
-                    bild_url={gericht.bild_url}
-                    kategorie={gericht.kategorie || ''}
-                    bewertungen={[]} // Admin zeigt keine Bewertungen
-                    tags={gericht.tags}
-                    preis={parseFloat(gericht.preis)}
-                    isFavorite={false}
-                    isAlert={false}
-                    onFavoritePress={() => {}}
-                    onAlertPress={() => {}}
-                  />
-                  {isLongPressed && !isPendingDelete && (
-                    <View style={styles.deleteIconContainer}>
-                      <TouchableOpacity onPress={() => startDeleteCountdown(gericht.id)}>
-                        <Feather name="trash-2" size={36} color="#fff" />
-                      </TouchableOpacity>
+        <TextInput
+          style={[styles.searchInput, { borderColor: themeColor.border, color: themeColor.text }]}
+          placeholder="Suche nach Gericht..."
+          placeholderTextColor={themeColor.placeholder || '#999'}
+          value={searchText}
+          onChangeText={setSearchText}
+        />
+
+        {/* Ansicht Icons */}
+        <View style={styles.iconRow}>
+          <TouchableOpacity onPress={() => setViewMode('list')}>
+            <Feather name="list" size={28} color={viewMode === 'list' ? '#d9534f' : themeColor.text} />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => setViewMode('grid')}>
+            <MaterialIcons name="grid-view" size={28} color={viewMode === 'grid' ? '#d9534f' : themeColor.text} />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => setViewMode('compact')}>
+            <Ionicons name="reorder-three-outline" size={28} color={viewMode === 'compact' ? '#d9534f' : themeColor.text} />
+          </TouchableOpacity>
+        </View>
+
+        {filteredGerichte.length === 0 ? (
+          <View style={{ alignItems: 'center', marginTop: 40 }}>
+            <Text style={{ color: themeColor.text }}>Keine passenden Gerichte gefunden.</Text>
+          </View>
+        ) : (
+          // Ansicht je nach viewMode
+          viewMode === 'grid' ? (
+            <GridCardList
+              daten={filteredGerichte.map(g => ({
+                name: g.name,
+                anzeigename: g.anzeigename,
+                bild_url: g.bild_url,
+                preis: parseFloat(g.preis),
+                isFavorite: false, // oder aus deinen Daten
+              }))}
+              onGerichtPress={(item) =>
+                router.push({
+                  pathname: '/adminBearbeiten',
+                  params: { id: gerichte.find(g => g.name === item.name)?.id?.toString() },
+                })
+              }
+              onFavoriteToggle={() => {}}
+            />
+          ) : viewMode === 'compact' ? (
+            <View>
+              {filteredGerichte.map((gericht) => {
+                const isLongPressed = longPressedId === gericht.id;
+                const isPendingDelete = pendingDelete?.id === gericht.id;
+                return (
+                  <Animatable.View
+                    key={gericht.id}
+                    animation="fadeInUp"
+                    delay={gericht.id * 100}
+                    style={{ marginBottom: 8 }}
+                  >
+                    <TouchableOpacity
+                      activeOpacity={0.9}
+                      onPress={() => {
+                        if (isLongPressed || isPendingDelete) {
+                          setLongPressedId(null);
+                        } else {
+                          router.push({
+                            pathname: '/adminBearbeiten',
+                            params: { id: gericht.id.toString() },
+                          });
+                        }
+                      }}
+                      onLongPress={() => setLongPressedId(gericht.id)}
+                      disabled={isPendingDelete}
+                    >
+                      <View
+                        style={[
+                          styles.cardWrapper,
+                          isLongPressed && styles.cardLongPressed,
+                          isPendingDelete && { backgroundColor: '#FFA500' },
+                        ]}
+                      >
+                        <ListItem
+                          name={gericht.name}
+                          anzeigename={gericht.anzeigename}
+                          isFavorite={false}
+                          isAlert={false}
+                          onFavoritePress={() => {}}
+                          onAlertPress={() => {}}
+                          onPress={() =>
+                            router.push({
+                              pathname: '/adminBearbeiten',
+                              params: { id: gericht.id.toString() },
+                            })
+                          }
+                        />
+                        {isLongPressed && !isPendingDelete && (
+                          <View style={styles.deleteIconContainer}>
+                            <TouchableOpacity onPress={() => startDeleteCountdown(gericht.id)}>
+                              <Feather name="trash-2" size={36} color="#fff" />
+                            </TouchableOpacity>
+                          </View>
+                        )}
+                        {isPendingDelete && (
+                          <>
+                            <View style={styles.deleteIconContainer}>
+                              <TouchableOpacity onPress={undoDelete}>
+                                <Feather name="rotate-ccw" size={36} color="#fff" />
+                              </TouchableOpacity>
+                            </View>
+                            <View style={styles.undoContainer}>
+                              <Text style={styles.undoText}>
+                                Wird in <Text style={styles.countdown}>{countdown}s</Text> gelöscht
+                              </Text>
+                              <TouchableOpacity onPress={undoDelete} style={styles.undoButton}>
+                                <Text style={styles.undoButtonText}>Rückgängig</Text>
+                              </TouchableOpacity>
+                            </View>
+                          </>
+                        )}
+                      </View>
+                    </TouchableOpacity>
+                  </Animatable.View>
+                );
+              })}
+            </View>
+          ) : (
+            filteredGerichte.map((gericht) => {
+              const isLongPressed = longPressedId === gericht.id;
+              const isPendingDelete = pendingDelete?.id === gericht.id;
+              // Kompakt-Ansicht: Card kleiner rendern
+              const cardStyle = viewMode === 'compact' ? styles.compactCard : {};
+
+              return (
+                <Animatable.View
+                  key={gericht.id}
+                  animation="fadeInUp"
+                  delay={gericht.id * 100}
+                  style={{ marginBottom: 16 }}
+                >
+                  <TouchableOpacity
+                    activeOpacity={0.9}
+                    onPress={() => {
+                      if (longPressedId === gericht.id || pendingDelete?.id === gericht.id) {
+                        setLongPressedId(null);
+                      } else {
+                        router.push({
+                          pathname: '/adminBearbeiten',
+                          params: { id: gericht.id.toString() },
+                        });
+                      }
+                    }}
+                    onLongPress={() => setLongPressedId(gericht.id)}
+                    disabled={pendingDelete?.id === gericht.id}
+                  >
+                    <View
+                      style={[
+                        styles.cardWrapper,
+                        viewMode === 'compact' && styles.compactCard,
+                        (longPressedId === gericht.id || pendingDelete?.id === gericht.id) && styles.cardLongPressed,
+                        pendingDelete?.id === gericht.id && { backgroundColor: '#FFA500' },
+                      ]}
+                    >
+                      <Card
+                        name={gericht.name}
+                        anzeigename={gericht.anzeigename}
+                        beschreibung={gericht.beschreibung}
+                        bild_url={gericht.bild_url}
+                        kategorie={gericht.kategorie || ''}
+                        bewertungen={[]}
+                        tags={gericht.tags}
+                        preis={parseFloat(gericht.preis)}
+                        isFavorite={false}
+                        isAlert={false}
+                        onFavoritePress={() => {}}
+                        onAlertPress={() => {}}
+                      />
+                      {longPressedId === gericht.id && !pendingDelete?.id && (
+                        <View style={styles.deleteIconContainer}>
+                          <TouchableOpacity onPress={() => startDeleteCountdown(gericht.id)}>
+                            <Feather name="trash-2" size={36} color="#fff" />
+                          </TouchableOpacity>
+                        </View>
+                      )}
+                      {pendingDelete?.id === gericht.id && (
+                        <>
+                          <View style={styles.deleteIconContainer}>
+                            <TouchableOpacity onPress={undoDelete}>
+                              <Feather name="rotate-ccw" size={36} color="#fff" />
+                            </TouchableOpacity>
+                          </View>
+                          <View style={styles.undoContainer}>
+                            <Text style={styles.undoText}>
+                              Wird in <Text style={styles.countdown}>{countdown}s</Text> gelöscht
+                            </Text>
+                            <TouchableOpacity onPress={undoDelete} style={styles.undoButton}>
+                              <Text style={styles.undoButtonText}>Rückgängig</Text>
+                            </TouchableOpacity>
+                          </View>
+                        </>
+                      )}
                     </View>
-                  )}
-                  {isPendingDelete && (
-                    <>
-                      <View style={styles.deleteIconContainer}>
-                        <TouchableOpacity onPress={undoDelete}>
-                          <Feather name="rotate-ccw" size={36} color="#fff" />
-                        </TouchableOpacity>
-                      </View>
-                      <View style={styles.undoContainer}>
-                        <Text style={styles.undoText}>
-                          Wird in <Text style={styles.countdown}>{countdown}s</Text> gelöscht
-                        </Text>
-                        <TouchableOpacity onPress={undoDelete} style={styles.undoButton}>
-                          <Text style={styles.undoButtonText}>Rückgängig</Text>
-                        </TouchableOpacity>
-                      </View>
-                    </>
-                  )}
-                </View>
-              </TouchableOpacity>
-            </Animatable.View>
-          );
-        })
-      )}
-    </ScrollView>
+                  </TouchableOpacity>
+                </Animatable.View>
+              );
+            })
+          )
+        )}
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
@@ -211,6 +353,22 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 20,
+  },
+  title: {
+    fontSize: 36,
+    fontWeight: '900',
+    textAlign: 'center',
+    marginBottom: 24,
+    textTransform: 'uppercase',
+    letterSpacing: 1.5,
+  },
+  searchInput: {
+    height: 48,
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    marginBottom: 20,
+    fontSize: 16,
   },
   cardWrapper: {
     position: 'relative',
@@ -262,5 +420,26 @@ const styles = StyleSheet.create({
     color: '#FFA500',
     fontWeight: 'bold',
     fontSize: 16,
+  },
+  iconRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 24,
+    marginBottom: 16,
+  },
+  gridContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+  },
+  gridItem: {
+    width: '48%',
+    marginBottom: 16,
+  },
+  compactCard: {
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    minHeight: 60,
+    backgroundColor: '#f5f5f5',
   },
 });

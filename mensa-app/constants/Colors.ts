@@ -20,7 +20,7 @@ export const Colors = {
     accent2: '#fb8d30', // Registrierung
     accent3: '#fdc128', // Admin Login
     buttonText: '#ffffff',
-    border: '#DDDDDD', // hinzugefügt
+    placeholder: '#888888', // ✅ hinzugefügt
   },
   dark: {
     background: '#121212',
@@ -40,6 +40,6 @@ export const Colors = {
     accent2: '#fb8d30',
     accent3: '#fdc128',
     buttonText: '#ffffff',
-    border: '#333333', // hinzugefügt
+    placeholder: '#999999', // ✅ hinzugefügt
   },
 } as const;
