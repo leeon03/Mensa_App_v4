@@ -16,9 +16,9 @@ import { supabase } from '../constants/supabase';
 import { Colors } from '../constants/Colors';
 import Card from '../components/ui/card';
 import GridCard, { GridCardList } from '../components/admin/gridCrad';
+import ListItem from '../components/admin/list';
 import { Feather, MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import ListItem from '../components/admin/list';
 
 export default function AdminGerichte() {
   const [gerichte, setGerichte] = useState<any[]>([]);
@@ -185,90 +185,79 @@ export default function AdminGerichte() {
               onFavoriteToggle={() => {}}
             />
           ) : viewMode === 'compact' ? (
-            <View>
-              {filteredGerichte.map((gericht) => {
-                const isLongPressed = longPressedId === gericht.id;
-                const isPendingDelete = pendingDelete?.id === gericht.id;
-                return (
-                  <Animatable.View
-                    key={gericht.id}
-                    animation="fadeInUp"
-                    delay={gericht.id * 100}
-                    style={{ marginBottom: 8 }}
+            filteredGerichte.map((gericht) => {
+              const isLongPressed = longPressedId === gericht.id;
+              const isPendingDelete = pendingDelete?.id === gericht.id;
+              return (
+                <Animatable.View
+                  key={gericht.id}
+                  animation="fadeInUp"
+                  delay={gericht.id * 100}
+                  style={{ marginBottom: 8 }}
+                >
+                  <TouchableOpacity
+                    activeOpacity={0.9}
+                    onPress={() => {
+                      if (longPressedId === gericht.id || pendingDelete?.id === gericht.id) {
+                        setLongPressedId(null);
+                      } else {
+                        router.push({
+                          pathname: '/adminBearbeiten',
+                          params: { id: gericht.id.toString() },
+                        });
+                      }
+                    }}
+                    onLongPress={() => setLongPressedId(gericht.id)}
+                    disabled={pendingDelete?.id === gericht.id}
                   >
-                    <TouchableOpacity
-                      activeOpacity={0.9}
-                      onPress={() => {
-                        if (isLongPressed || isPendingDelete) {
-                          setLongPressedId(null);
-                        } else {
+                    <View>
+                      <ListItem
+                        name={gericht.name}
+                        anzeigename={gericht.anzeigename}
+                        isFavorite={false}
+                        isAlert={false}
+                        onFavoritePress={() => {}}
+                        onAlertPress={() => {}}
+                        onPress={() => {
                           router.push({
                             pathname: '/adminBearbeiten',
                             params: { id: gericht.id.toString() },
                           });
-                        }
-                      }}
-                      onLongPress={() => setLongPressedId(gericht.id)}
-                      disabled={isPendingDelete}
-                    >
-                      <View
-                        style={[
-                          styles.cardWrapper,
-                          isLongPressed && styles.cardLongPressed,
-                          isPendingDelete && { backgroundColor: '#FFA500' },
-                        ]}
-                      >
-                        <ListItem
-                          name={gericht.name}
-                          anzeigename={gericht.anzeigename}
-                          isFavorite={false}
-                          isAlert={false}
-                          onFavoritePress={() => {}}
-                          onAlertPress={() => {}}
-                          onPress={() =>
-                            router.push({
-                              pathname: '/adminBearbeiten',
-                              params: { id: gericht.id.toString() },
-                            })
-                          }
-                        />
-                        {isLongPressed && !isPendingDelete && (
+                        }}
+                      />
+                      {isLongPressed && !pendingDelete?.id && (
+                        <View style={styles.deleteIconContainer}>
+                          <TouchableOpacity onPress={() => startDeleteCountdown(gericht.id)}>
+                            <Feather name="trash-2" size={36} color="#fff" />
+                          </TouchableOpacity>
+                        </View>
+                      )}
+                      {isPendingDelete && (
+                        <>
                           <View style={styles.deleteIconContainer}>
-                            <TouchableOpacity onPress={() => startDeleteCountdown(gericht.id)}>
-                              <Feather name="trash-2" size={36} color="#fff" />
+                            <TouchableOpacity onPress={undoDelete}>
+                              <Feather name="rotate-ccw" size={36} color="#fff" />
                             </TouchableOpacity>
                           </View>
-                        )}
-                        {isPendingDelete && (
-                          <>
-                            <View style={styles.deleteIconContainer}>
-                              <TouchableOpacity onPress={undoDelete}>
-                                <Feather name="rotate-ccw" size={36} color="#fff" />
-                              </TouchableOpacity>
-                            </View>
-                            <View style={styles.undoContainer}>
-                              <Text style={styles.undoText}>
-                                Wird in <Text style={styles.countdown}>{countdown}s</Text> gelöscht
-                              </Text>
-                              <TouchableOpacity onPress={undoDelete} style={styles.undoButton}>
-                                <Text style={styles.undoButtonText}>Rückgängig</Text>
-                              </TouchableOpacity>
-                            </View>
-                          </>
-                        )}
-                      </View>
-                    </TouchableOpacity>
-                  </Animatable.View>
-                );
-              })}
-            </View>
+                          <View style={styles.undoContainer}>
+                            <Text style={styles.undoText}>
+                              Wird in <Text style={styles.countdown}>{countdown}s</Text> gelöscht
+                            </Text>
+                            <TouchableOpacity onPress={undoDelete} style={styles.undoButton}>
+                              <Text style={styles.undoButtonText}>Rückgängig</Text>
+                            </TouchableOpacity>
+                          </View>
+                        </>
+                      )}
+                    </View>
+                  </TouchableOpacity>
+                </Animatable.View>
+              );
+            })
           ) : (
             filteredGerichte.map((gericht) => {
               const isLongPressed = longPressedId === gericht.id;
               const isPendingDelete = pendingDelete?.id === gericht.id;
-              // Kompakt-Ansicht: Card kleiner rendern
-              const cardStyle = viewMode === 'compact' ? styles.compactCard : {};
-
               return (
                 <Animatable.View
                   key={gericht.id}
@@ -294,7 +283,6 @@ export default function AdminGerichte() {
                     <View
                       style={[
                         styles.cardWrapper,
-                        viewMode === 'compact' && styles.compactCard,
                         (longPressedId === gericht.id || pendingDelete?.id === gericht.id) && styles.cardLongPressed,
                         pendingDelete?.id === gericht.id && { backgroundColor: '#FFA500' },
                       ]}
