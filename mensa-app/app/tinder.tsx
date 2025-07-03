@@ -1,4 +1,3 @@
-// TinderScreen.tsx
 import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
@@ -55,7 +54,6 @@ function SwipeScreen() {
   const [introVisible, setIntroVisible] = useState(true);
   const [introStep, setIntroStep] = useState(1);
   const [loading, setLoading] = useState(true);
-  const [hasSwiped, setHasSwiped] = useState(false); // ✅ NEU
 
   const { toggleFavorite } = useFavorites();
 
@@ -182,29 +180,21 @@ function SwipeScreen() {
           Animated.spring(likeScale, { toValue: 1, useNativeDriver: false }).start();
           Animated.spring(dislikeScale, { toValue: 1, useNativeDriver: false }).start();
         }
-
-        if (!hasSwiped && gesture.dx > 120) {
-          setHasSwiped(true);
-          handleSwipe('like');
-        } else if (!hasSwiped && gesture.dx < -120) {
-          setHasSwiped(true);
-          handleSwipe('dislike');
-        }
       },
       onPanResponderRelease: (_, gesture) => {
-        setHasSwiped(false);
-
-        if (gesture.dx > 120 || gesture.dx < -120) {
-          return;
+        if (gesture.dx > 120) {
+          handleSwipe('like'); // Swipen nach rechts
+        } else if (gesture.dx < -120) {
+          handleSwipe('dislike'); // Swipen nach links
+        } else {
+          Animated.spring(position, {
+            toValue: { x: 0, y: 0 },
+            useNativeDriver: false,
+          }).start();
+          setSwipeDirection(null);
+          Animated.spring(likeScale, { toValue: 1, useNativeDriver: false }).start();
+          Animated.spring(dislikeScale, { toValue: 1, useNativeDriver: false }).start();
         }
-
-        Animated.spring(position, {
-          toValue: { x: 0, y: 0 },
-          useNativeDriver: false,
-        }).start();
-        setSwipeDirection(null);
-        Animated.spring(likeScale, { toValue: 1, useNativeDriver: false }).start();
-        Animated.spring(dislikeScale, { toValue: 1, useNativeDriver: false }).start();
       },
     })
   ).current;
