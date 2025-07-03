@@ -19,6 +19,7 @@ import NaehrwertBox from '../components/gerichtDetail/naerwerteBox';
 import ZutatenTabelle from '../components/gerichtDetail/zutatenTabelle';
 import GerichtHeader from '../components/gerichtDetail/gerichtHeader';
 import GerichtBewertungHeute from '../components/speiseplan_heute/gerichtBewertungHeute';
+import ImageGallery from '../components/speiseplan_heute/galerie';
 
 const TAGS = [
   { key: 'vegan', label: 'Vegan', icon: 'leaf', color: '#A5D6A7' },
@@ -83,6 +84,7 @@ export default function GerichtDetailScreen() {
             stars,
             created_at,
             user_id,
+            bild_url,
             users (
               first_name,
               last_name,
@@ -99,9 +101,10 @@ export default function GerichtDetailScreen() {
             user: `${b.users?.first_name ?? ''} ${b.users?.last_name ?? ''}`.trim() || 'Unbekannt',
             text: b.kommentar || '',
             stars: b.stars,
-            avatarUri: b.users?.avatar_data || null,
+            avatarUri: b.users?.avatar_url || null,
             timestamp: b.created_at || '',
             own: b.user_id === currentUserId,
+            bild_url: b.bild_url || null,
           }));
           setBewertungen(mapped);
         }
@@ -124,6 +127,7 @@ export default function GerichtDetailScreen() {
         stars,
         created_at,
         user_id,
+        bild_url,
         users (
           first_name,
           last_name,
@@ -145,6 +149,7 @@ export default function GerichtDetailScreen() {
       avatarUri: b.users?.avatar_url || null,
       timestamp: b.created_at || '',
       own: b.user_id === userId,
+      bild_url: b.bild_url || null,
     }));
 
     setBewertungen(mapped);
@@ -244,6 +249,8 @@ export default function GerichtDetailScreen() {
             onUpdate={refreshBewertungen}
             buttonColor={baseColor}
           />
+
+          <ImageGallery bewertungen={bewertungen} />
         </View>
       </ScrollView>
     </SafeAreaView>

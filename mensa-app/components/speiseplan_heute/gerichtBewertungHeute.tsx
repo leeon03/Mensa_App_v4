@@ -1,15 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  useColorScheme,
-  Alert,
-  KeyboardAvoidingView,
-  Platform,
-  TouchableWithoutFeedback,
-  Keyboard,
-} from 'react-native';
+import { View, Text, StyleSheet, useColorScheme, Alert } from 'react-native';
 import KommentarBox from './KommentarBox';
 import ChatBubble from './ChatBubble';
 import * as Animatable from 'react-native-animatable';
@@ -32,7 +22,7 @@ type Props = {
   kommentare: Kommentar[];
   userId: string | null;
   onUpdate: () => void;
-  buttonColor?: string;
+  buttonColor?: string; // verwendet für Styling
 };
 
 export default function GerichtBewertungHeute({
@@ -53,12 +43,8 @@ export default function GerichtBewertungHeute({
   }, [kommentare, localKommentare]);
 
   const alleKommentare = useMemo(() => {
-    const kommentarKey = (k: Kommentar) =>
-      `${(k.text || '').trim()}__${k.stars}`;
-
-    const existingKeys = new Set(
-      kommentare.map(kom => kommentarKey(kom))
-    );
+    const kommentarKey = (k: Kommentar) => `${k.text.trim()}__${k.stars}`;
+    const existingKeys = new Set(kommentare.map(kom => kommentarKey(kom)));
 
     const neueKommentare = localKommentare.filter(
       kom => !existingKeys.has(kommentarKey(kom))
@@ -72,7 +58,7 @@ export default function GerichtBewertungHeute({
     return now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
-  const handleKommentarSubmit = async (data: { text: string; stars: number }) => {
+  const handleKommentarSubmit = async (data: { text: string; stars: number; bild_url?: string }) => {
     const neuerKommentar: Kommentar = {
       id: Date.now(),
       user: 'Du',
@@ -90,6 +76,7 @@ export default function GerichtBewertungHeute({
       user_id: userId,
       kommentar: data.text,
       stars: data.stars,
+      bild_url: data.bild_url || null, // <-- HIER hinzugefügt!
     });
 
     if (error) {
@@ -101,62 +88,49 @@ export default function GerichtBewertungHeute({
   };
 
   return (
-    <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
-        style={{ width: '100%' }}
-      >
-        <Animatable.View animation="fadeIn" duration={400} style={{ width: '100%' }}>
-          <Text style={[styles.heading, { color: colors.text }]}>Deine Bewertung</Text>
+    <Animatable.View
+      animation="fadeIn"
+      duration={400}
+      style={{ width: '100%' }}
+    >
+      <Text style={[styles.heading, { color: colors.text }]}>Deine Bewertung</Text>
 
-          {hatBereitsBewertet ? (
-            <View style={[styles.infoBox, { borderColor: highlight }]}>
-              <Ionicons
-                name="checkmark-circle"
-                size={20}
-                color={highlight}
-                style={{ marginRight: 6 }}
-              />
-              <Text style={[styles.infoText, { color: colors.text }]}>
-                Du hast dieses Gericht bereits bewertet. Vielen Dank!
-              </Text>
-            </View>
-          ) : (
-            <KommentarBox
-              onSubmit={handleKommentarSubmit}
-              disabled={hatBereitsBewertet}
-              buttonColor={highlight}
+      {hatBereitsBewertet ? (
+        <View style={[styles.infoBox, { borderColor: highlight }]}>
+          <Ionicons name="checkmark-circle" size={20} color={highlight} style={{ marginRight: 6 }} />
+          <Text style={[styles.infoText, { color: colors.text }]}>
+            Du hast dieses Gericht bereits bewertet. Vielen Dank!
+          </Text>
+        </View>
+      ) : (
+        <KommentarBox onSubmit={handleKommentarSubmit} disabled={hatBereitsBewertet} buttonColor={highlight} />
+      )}
+
+      <Text style={[styles.heading, { color: colors.text }]}>Kommentare</Text>
+
+      {alleKommentare.length === 0 ? (
+        <Text style={{ color: colors.icon, marginBottom: 8 }}>Noch keine Kommentare</Text>
+      ) : (
+        alleKommentare.map((kommentar, index) => (
+          <Animatable.View
+            key={kommentar.id}
+            animation={kommentar.own ? 'fadeInRight' : 'fadeInLeft'}
+            duration={500}
+            delay={index * 100}
+          >
+            <ChatBubble
+              user={kommentar.user}
+              text={kommentar.text}
+              stars={kommentar.stars}
+              own={kommentar.own}
+              avatarUri={kommentar.avatarUri}
+              timestamp={kommentar.timestamp ?? 'Gerade eben'}
+              highlightColor={highlight} // NEU: Farbangleichung
             />
-          )}
-
-          <Text style={[styles.heading, { color: colors.text }]}>Kommentare</Text>
-
-          {alleKommentare.length === 0 ? (
-            <Text style={{ color: colors.icon, marginBottom: 8 }}>Noch keine Kommentare</Text>
-          ) : (
-            alleKommentare.map((kommentar, index) => (
-              <Animatable.View
-                key={kommentar.id}
-                animation={kommentar.own ? 'fadeInRight' : 'fadeInLeft'}
-                duration={500}
-                delay={index * 100}
-              >
-                <ChatBubble
-                  user={kommentar.user || 'Unbekannt'}
-                  text={kommentar.text || ''}
-                  stars={kommentar.stars}
-                  own={kommentar.own}
-                  avatarUri={kommentar.avatarUri}
-                  timestamp={kommentar.timestamp ?? 'Gerade eben'}
-                  highlightColor={highlight}
-                />
-              </Animatable.View>
-            ))
-          )}
-        </Animatable.View>
-      </KeyboardAvoidingView>
-    </TouchableWithoutFeedback>
+          </Animatable.View>
+        ))
+      )}
+    </Animatable.View>
   );
 }
 

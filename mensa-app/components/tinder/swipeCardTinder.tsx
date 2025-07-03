@@ -9,7 +9,6 @@ import {
 } from 'react-native';
 import { Colors } from '../../constants/Colors';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router'; // ✅ NEU: Navigation importieren
 
 interface Gericht {
   id: number;
@@ -25,6 +24,7 @@ interface SwipeCardProps {
   theme: 'light' | 'dark';
   panHandlers: any;
   style?: any;
+  onCardPress?: () => void;
 }
 
 const TAGS: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
@@ -80,25 +80,15 @@ const TAGS: Record<string, { label: string; color: string; icon: React.ReactNode
   },
 };
 
-const SwipeCard: React.FC<SwipeCardProps> = ({ gericht, theme, panHandlers, style }) => {
-  const router = useRouter(); // ✅ NEU
-
+const SwipeCard: React.FC<SwipeCardProps> = ({ gericht, theme, panHandlers, style, onCardPress }) => {
   return (
     <Animated.View {...panHandlers} style={[styles.card, style]}>
       <View style={styles.imageContainer}>
         <Image source={{ uri: gericht.bild_url }} style={styles.image} />
         <View style={styles.overlay} />
 
-        {/* Info-Button: navigiert zur Detailansicht */}
-        <TouchableOpacity
-          onPress={() =>
-            router.push({
-              pathname: '/gerichtDetail',
-              params: { name: gericht.name },
-            })
-          }
-          style={styles.infoButton}
-        >
+        {/* Info-Button: öffnet nur bei Klick die Detailansicht */}
+        <TouchableOpacity onPress={onCardPress} style={styles.infoButton}>
           <Ionicons name="information-circle" size={28} color={Colors[theme].accent3} />
         </TouchableOpacity>
 
@@ -186,5 +176,6 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 20,
     right: 20,
+    zIndex: 10,
   },
 });

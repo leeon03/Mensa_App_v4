@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Text,
   TextInput,
@@ -6,104 +6,115 @@ import {
   StyleSheet,
   useColorScheme,
   View,
+  Modal,
+  Button,
 } from 'react-native';
 import { Colors } from '../../constants/Colors';
 import ProfileSection from '../profile/profileSection';
 
 interface Props {
-  newPassword: string;
-  repeatPassword: string;
-  setNewPassword: (value: string) => void;
-  setRepeatPassword: (value: string) => void;
-  onChangePassword: () => void;
+  onChangePassword: (newPassword: string) => void;
 }
 
-const PasswordSection: React.FC<Props> = ({
-  newPassword,
-  repeatPassword,
-  setNewPassword,
-  setRepeatPassword,
-  onChangePassword,
-}) => {
+const PasswordSection: React.FC<Props> = ({ onChangePassword }) => {
   const theme = useColorScheme() || 'light';
   const colorTheme = Colors[theme];
 
+  const [modalVisible, setModalVisible] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  const [repeatPassword, setRepeatPassword] = useState('');
+
+  const handleSave = () => {
+    if (newPassword === repeatPassword && newPassword.trim().length > 0) {
+      onChangePassword(newPassword);
+      setModalVisible(false);
+      setNewPassword('');
+      setRepeatPassword('');
+    } else {
+      // Optional: Fehleranzeige einbauen
+      alert('Die Passwörter stimmen nicht überein oder sind leer.');
+    }
+  };
+
   return (
-    <ProfileSection title="Sicherheit & Passwort">
-      <TextInput
-        style={[
-          styles.input,
-          {
-            borderColor: colorTheme.border,
-            color: colorTheme.text,
-            backgroundColor: colorTheme.surface,
-          },
-        ]}
-        placeholder="Neues Passwort"
-        placeholderTextColor={colorTheme.icon}
-        secureTextEntry
-        value={newPassword}
-        onChangeText={setNewPassword}
-      />
-      <TextInput
-        style={[
-          styles.input,
-          {
-            borderColor: colorTheme.border,
-            color: colorTheme.text,
-            backgroundColor: colorTheme.surface,
-          },
-        ]}
-        placeholder="Neues Passwort wiederholen"
-        placeholderTextColor={colorTheme.icon}
-        secureTextEntry
-        value={repeatPassword}
-        onChangeText={setRepeatPassword}
-      />
-      <TouchableOpacity
-        onPress={onChangePassword}
-        style={[
-          styles.saveButton,
-          {
-            backgroundColor: theme === 'dark' ? '#FFFFFF' : '#000000',
-          },
-        ]}
-        activeOpacity={0.9}
+    <>
+      <ProfileSection title="Sicherheit & Passwort">
+        <TouchableOpacity onPress={() => setModalVisible(true)} style={styles.editButton}>
+          <Text style={[styles.editButtonText, { color: colorTheme.tint }]}>🔒 Passwort ändern</Text>
+        </TouchableOpacity>
+      </ProfileSection>
+
+      <Modal
+        visible={modalVisible}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setModalVisible(false)}
       >
-        <Text
-          style={[
-            styles.saveButtonText,
-            {
-              color: theme === 'dark' ? '#000000' : '#FFFFFF',
-            },
-          ]}
-        >
-          🔒 Passwort speichern
-        </Text>
-      </TouchableOpacity>
-    </ProfileSection>
+        <View style={styles.modalBackdrop}>
+          <View style={[styles.modalContainer, { backgroundColor: colorTheme.background }]}>
+            <Text style={[styles.modalTitle, { color: colorTheme.text }]}>Neues Passwort</Text>
+            <TextInput
+              style={[styles.input, { color: colorTheme.text, borderColor: colorTheme.icon }]}
+              placeholder="Neues Passwort"
+              placeholderTextColor={colorTheme.icon}
+              secureTextEntry
+              value={newPassword}
+              onChangeText={setNewPassword}
+            />
+            <TextInput
+              style={[styles.input, { color: colorTheme.text, borderColor: colorTheme.icon }]}
+              placeholder="Wiederholen"
+              placeholderTextColor={colorTheme.icon}
+              secureTextEntry
+              value={repeatPassword}
+              onChangeText={setRepeatPassword}
+            />
+            <View style={styles.modalButtons}>
+              <Button title="Abbrechen" onPress={() => setModalVisible(false)} />
+              <Button title="Speichern" onPress={handleSave} />
+            </View>
+          </View>
+        </View>
+      </Modal>
+    </>
   );
 };
 
 const styles = StyleSheet.create({
+  editButton: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    backgroundColor: 'transparent',
+  },
+  editButtonText: {
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  modalBackdrop: {
+    flex: 1,
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    padding: 20,
+  },
+  modalContainer: {
+    padding: 20,
+    borderRadius: 8,
+  },
+  modalTitle: {
+    fontSize: 18,
+    marginBottom: 12,
+    fontWeight: 'bold',
+  },
   input: {
     borderWidth: 1,
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
+    borderRadius: 6,
+    padding: 10,
     fontSize: 16,
     marginBottom: 14,
   },
-  saveButton: {
-    marginTop: 8,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    borderRadius: 12,
-    alignItems: 'center',
-  },
-  saveButtonText: {
-    fontWeight: '600',
-    fontSize: 16,
+  modalButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
   },
 });
 

@@ -15,6 +15,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../../constants/Colors';
 import * as ImagePicker from 'expo-image-picker';
 import { supabase } from '../../constants/supabase';
+import * as FileSystem from 'expo-file-system';
+// @ts-ignore
 
 type Props = {
   onSubmit: (data: { text: string; stars: number; bild_url?: string }) => void;
@@ -75,28 +77,12 @@ export default function KommentarBox({ onSubmit, disabled, buttonColor }: Props)
       const asset = result.assets[0];
       setImageUri(asset.uri);
 
-      // Bild zu Supabase hochladen
       setUploading(true);
-      const response = await fetch(asset.uri);
-      const blob = await response.blob();
-      const fileExt = asset.uri.split('.').pop() || 'jpg';
-      const filePath = `kommentare/${Date.now()}.${fileExt}`;
 
-      const { error: uploadError } = await supabase.storage
-        .from('bewertungen')
-        .upload(filePath, blob, {
-          contentType: blob.type,
-          upsert: true,
-        });
+      // Bild als Base64 laden und als Data-URL speichern
+      const base64 = await FileSystem.readAsStringAsync(asset.uri, { encoding: FileSystem.EncodingType.Base64 });
+      setImageUrl(`data:image/jpeg;base64,${base64}`);
 
-      if (uploadError) {
-        Alert.alert('Fehler beim Hochladen', uploadError.message);
-        setUploading(false);
-        return;
-      }
-
-      const { data } = supabase.storage.from('bewertungen').getPublicUrl(filePath);
-      setImageUrl(data?.publicUrl || null);
       setUploading(false);
     } catch (err: any) {
       Alert.alert('Fehler', err.message);

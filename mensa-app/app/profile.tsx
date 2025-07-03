@@ -47,10 +47,11 @@ function ProfileContent() {
   const [email, setEmail] = useState('');
   const [createdAt, setCreatedAt] = useState('');
   const [userId, setUserId] = useState('');
-  const [userAvatar, setUserAvatar] = useState('');
+  const [userAvatar, setUserAvatar] = useState<string | null>(null);
   const [newPassword, setNewPassword] = useState('');
   const [repeatPassword, setRepeatPassword] = useState('');
   const [favoritesCount, setFavoritesCount] = useState(0);
+  const [avatarKey, setAvatarKey] = useState(0);
 
   useEffect(() => {
     const loadUserData = async () => {
@@ -76,8 +77,8 @@ function ProfileContent() {
         .eq('id', user.id)
         .single();
 
-      if (!profileError && profile?.avatar_url) {
-        setUserAvatar(profile.avatar_url);
+      if (!profileError) {
+        setUserAvatar(profile?.avatar_url ?? null);
       }
 
       const { count, error: favError } = await supabase
@@ -154,7 +155,7 @@ function ProfileContent() {
           text: 'Löschen',
           style: 'destructive',
           onPress: async () => {
-            const { error } = await supabase.rpc('delete_current_user'); // sichere Methode
+            const { error } = await supabase.rpc('delete_current_user');
             if (error) {
               Alert.alert('Fehler', 'Konto konnte nicht gelöscht werden.');
               return;
@@ -181,6 +182,27 @@ function ProfileContent() {
     ]);
   };
 
+  const handleSaveName = async (newName: string) => {
+    const [first_name, ...lastParts] = newName.split(' ');
+    const last_name = lastParts.join(' ') || '';
+
+    const { error } = await supabase.auth.updateUser({
+      data: {
+        first_name,
+        last_name,
+        display_name: newName,
+      },
+    });
+
+    if (error) {
+      Alert.alert('Fehler', error.message);
+      return;
+    }
+
+    setName(newName);
+    Alert.alert('Erfolg', 'Name wurde gespeichert.');
+  };
+
   return (
     <ScrollView
       contentContainerStyle={[
@@ -199,10 +221,14 @@ function ProfileContent() {
 
       <View style={{ alignItems: 'center', marginBottom: 24 }}>
         <Avatar
+          key={avatarKey}
           name={name}
           avatarUri={userAvatar}
           userId={userId}
-          onUpload={(url) => setUserAvatar(url)}
+          onUpload={(url) => {
+            setUserAvatar(url); // url kann null sein, wenn Bild gelöscht wird
+            setAvatarKey((prev) => prev + 1); // erzwingt re-render
+          }}
         />
       </View>
 
@@ -211,6 +237,7 @@ function ProfileContent() {
         email={email}
         createdAt={createdAt}
         favoritesCount={favoritesCount}
+        onSaveName={handleSaveName}
       />
 
       <NotificationSection userId={userId} />
