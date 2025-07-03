@@ -1,3 +1,4 @@
+// SwipeCard.tsx
 import React from 'react';
 import {
   Animated,
@@ -9,7 +10,7 @@ import {
 } from 'react-native';
 import { Colors } from '../../constants/Colors';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router'; // ✅ NEU: Navigation importieren
+import { useRouter } from 'expo-router';
 
 interface Gericht {
   id: number;
@@ -81,7 +82,7 @@ const TAGS: Record<string, { label: string; color: string; icon: React.ReactNode
 };
 
 const SwipeCard: React.FC<SwipeCardProps> = ({ gericht, theme, panHandlers, style }) => {
-  const router = useRouter(); // ✅ NEU
+  const router = useRouter();
 
   return (
     <Animated.View {...panHandlers} style={[styles.card, style]}>
@@ -89,18 +90,18 @@ const SwipeCard: React.FC<SwipeCardProps> = ({ gericht, theme, panHandlers, styl
         <Image source={{ uri: gericht.bild_url }} style={styles.image} />
         <View style={styles.overlay} />
 
-        {/* Info-Button: navigiert zur Detailansicht */}
-        <TouchableOpacity
-          onPress={() =>
-            router.push({
-              pathname: '/gerichtDetail',
-              params: { name: gericht.name },
-            })
-          }
-          style={styles.infoButton}
-        >
-          <Ionicons name="information-circle" size={28} color={Colors[theme].accent3} />
-        </TouchableOpacity>
+        <View style={styles.infoButtonWrapper} pointerEvents="box-none">
+          <TouchableOpacity
+            onPress={() =>
+              router.push({
+                pathname: '/gerichtDetail',
+                params: { name: gericht.name },
+              })
+            }
+          >
+            <Ionicons name="information-circle" size={28} color={Colors[theme].accent3} />
+          </TouchableOpacity>
+        </View>
 
         <View style={styles.content}>
           <Text style={styles.title} numberOfLines={2} ellipsizeMode="tail">
@@ -134,6 +135,7 @@ export default SwipeCard;
 const styles = StyleSheet.create({
   card: {
     width: '100%',
+    height: 450,
     borderRadius: 20,
     overflow: 'hidden',
     elevation: 4,
@@ -142,7 +144,7 @@ const styles = StyleSheet.create({
   imageContainer: {
     position: 'relative',
     width: '100%',
-    height: 450,
+    height: '100%',
   },
   image: {
     width: '100%',
@@ -176,15 +178,18 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     paddingHorizontal: 10,
     paddingVertical: 5,
+    marginRight: 6,
+    marginBottom: 6,
   },
   tagText: {
     fontSize: 12,
     color: '#000',
     marginLeft: 6,
   },
-  infoButton: {
+  infoButtonWrapper: {
     position: 'absolute',
     bottom: 20,
     right: 20,
+    zIndex: 10,
   },
 });

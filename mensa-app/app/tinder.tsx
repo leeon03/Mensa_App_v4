@@ -1,3 +1,4 @@
+// TinderScreen.tsx
 import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
@@ -20,7 +21,7 @@ import { MatchModal } from '../components/tinder/matchModal';
 import IntroModal from '../components/tinder/introModal';
 import SwipeCard from '../components/tinder/swipeCardTinder';
 import { useFavorites } from '../components/speiseplan_heute/favoritesContext';
-import { useRouter } from 'expo-router'; // ✅ hinzugefügt
+import { useRouter } from 'expo-router';
 
 const screenWidth = Dimensions.get('window').width;
 
@@ -45,7 +46,7 @@ export default function TinderScreen() {
 
 function SwipeScreen() {
   const theme = useColorScheme() || 'light';
-  const router = useRouter(); // ✅
+  const router = useRouter();
   const [gerichte, setGerichte] = useState<Gericht[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [favoriteIds, setFavoriteIds] = useState<number[]>([]);
@@ -54,6 +55,7 @@ function SwipeScreen() {
   const [introVisible, setIntroVisible] = useState(true);
   const [introStep, setIntroStep] = useState(1);
   const [loading, setLoading] = useState(true);
+  const [hasSwiped, setHasSwiped] = useState(false); // ✅ NEU
 
   const { toggleFavorite } = useFavorites();
 
@@ -161,7 +163,7 @@ function SwipeScreen() {
 
   const panResponder = useRef(
     PanResponder.create({
-      onMoveShouldSetPanResponder: (_, gesture) => Math.abs(gesture.dx) > 10,
+      onMoveShouldSetPanResponder: () => true,
       onPanResponderMove: (_, gesture) => {
         position.setValue({ x: gesture.dx, y: gesture.dy });
 
@@ -180,21 +182,29 @@ function SwipeScreen() {
           Animated.spring(likeScale, { toValue: 1, useNativeDriver: false }).start();
           Animated.spring(dislikeScale, { toValue: 1, useNativeDriver: false }).start();
         }
+
+        if (!hasSwiped && gesture.dx > 120) {
+          setHasSwiped(true);
+          handleSwipe('like');
+        } else if (!hasSwiped && gesture.dx < -120) {
+          setHasSwiped(true);
+          handleSwipe('dislike');
+        }
       },
       onPanResponderRelease: (_, gesture) => {
-        if (gesture.dx > 120) {
-          handleSwipe('like');
-        } else if (gesture.dx < -120) {
-          handleSwipe('dislike');
-        } else {
-          Animated.spring(position, {
-            toValue: { x: 0, y: 0 },
-            useNativeDriver: false,
-          }).start();
-          setSwipeDirection(null);
-          Animated.spring(likeScale, { toValue: 1, useNativeDriver: false }).start();
-          Animated.spring(dislikeScale, { toValue: 1, useNativeDriver: false }).start();
+        setHasSwiped(false);
+
+        if (gesture.dx > 120 || gesture.dx < -120) {
+          return;
         }
+
+        Animated.spring(position, {
+          toValue: { x: 0, y: 0 },
+          useNativeDriver: false,
+        }).start();
+        setSwipeDirection(null);
+        Animated.spring(likeScale, { toValue: 1, useNativeDriver: false }).start();
+        Animated.spring(dislikeScale, { toValue: 1, useNativeDriver: false }).start();
       },
     })
   ).current;
@@ -202,16 +212,14 @@ function SwipeScreen() {
   const currentGericht = gerichte[currentIndex];
   const isLight = theme === 'light';
 
-  const handleCardPress = () => {
-    if (!currentGericht) return;
-    router.push({
-      pathname: '/gerichtDetail',
-      params: {
-        name: currentGericht.name,
-        source: 'tinder',
-        color: Colors[theme].accent3,
-      },
-    });
+  const handleIntroDismiss = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    await supabase
+      .from('intro_flags')
+      .upsert({ user_id: user.id, seen_intro: true });
+    setIntroVisible(false);
   };
 
   if (loading) {
@@ -229,16 +237,6 @@ function SwipeScreen() {
       </View>
     );
   }
-
-  const handleIntroDismiss = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-
-    await supabase
-      .from('intro_flags')
-      .upsert({ user_id: user.id, seen_intro: true });
-    setIntroVisible(false);
-  };
 
   return (
     <View style={[styles.container, { backgroundColor: Colors[theme].background }]}>
@@ -259,15 +257,12 @@ function SwipeScreen() {
       </Animatable.Text>
 
       <View style={{ position: 'relative', width: '100%' }}>
-        <TouchableOpacity activeOpacity={0.9} onPress={handleCardPress}>
-          <SwipeCard
-            gericht={currentGericht}
-            theme={theme}
-            panHandlers={panResponder.panHandlers}
-            style={swipeCardStyle}
-          />
-        </TouchableOpacity>
-
+        <SwipeCard
+          gericht={currentGericht}
+          theme={theme}
+          panHandlers={panResponder.panHandlers}
+          style={swipeCardStyle}
+        />
         {swipeDirection === 'like' && (
           <View style={styles.tinderLike}>
             <Text style={styles.tinderLikeText}>LIKE</Text>
