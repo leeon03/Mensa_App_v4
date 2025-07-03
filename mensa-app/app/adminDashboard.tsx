@@ -10,6 +10,7 @@ import { useColorScheme } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../constants/Colors';
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context'; // <--- hinzufügen
 
 export default function AdminDashboard() {
   const theme = useColorScheme() || 'light';
@@ -30,27 +31,34 @@ export default function AdminDashboard() {
   ] as const;
 
   return (
-    <ScrollView
-      contentContainerStyle={[
-        styles.container,
-        { backgroundColor: themeColor.background },
-      ]}
-    >
-      <Text style={[styles.heading, { color: themeColor.text }]}>
-        Admin Dashboard
-      </Text>
-
-      {links.map((item, index) => (
-        <TouchableOpacity
-          key={index}
-          style={[styles.button, { backgroundColor: themeColor.accent1 }]}
-          onPress={() => router.push(item.route)}
+    <SafeAreaProvider>
+      <SafeAreaView style={{ flex: 1, backgroundColor: themeColor.background }}>
+        <View style={{ marginTop: 8, marginBottom: 8 }}>
+          <Text style={[styles.title, { color: '#d9534f' }]}>Admin</Text>
+          <Text style={[styles.title, { color: '#d9534f', marginBottom: 0 }]}>Dashboard</Text>
+        </View>
+        <ScrollView
+          contentContainerStyle={[
+            styles.container,
+            { backgroundColor: themeColor.background },
+          ]}
         >
-          <Ionicons name={item.icon} size={20} color="#fff" style={styles.icon} />
-          <Text style={styles.buttonText}>{item.label}</Text>
-        </TouchableOpacity>
-      ))}
-    </ScrollView>
+          {links.map((item, index) => (
+            <TouchableOpacity
+              key={index}
+              style={[
+                styles.button,
+                { backgroundColor: '#d9534f' } // gleiche Farbe wie Überschrift
+              ]}
+              onPress={() => router.push(item.route)}
+            >
+              <Ionicons name={item.icon} size={20} color="#fff" style={styles.icon} />
+              <Text style={styles.buttonText}>{item.label}</Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      </SafeAreaView>
+    </SafeAreaProvider>
   );
 }
 
@@ -61,11 +69,23 @@ const styles = StyleSheet.create({
     alignItems: 'stretch',
     flexGrow: 1,
   },
-  heading: {
-    fontSize: 26,
-    fontWeight: 'bold',
-    marginBottom: 24,
+  // Überschrift wie in speiseplan.tsx
+  title: {
+    fontSize: 36,
+    fontWeight: '900',
     textAlign: 'center',
+    marginBottom: 8,
+    textTransform: 'uppercase',
+    letterSpacing: 1.5,
+    lineHeight: 40,
+  },
+  subtitle: {
+    fontSize: 18,
+    fontWeight: '400',
+    textTransform: 'none',
+    color: '#d9534f',
+    letterSpacing: 0.5,
+    lineHeight: 26,
   },
   button: {
     flexDirection: 'row',
