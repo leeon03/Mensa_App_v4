@@ -26,30 +26,60 @@ const PasswordSection: React.FC<Props> = ({
   onChangePassword,
 }) => {
   const theme = useColorScheme() || 'light';
+  const colorTheme = Colors[theme];
 
   return (
     <ProfileSection title="Sicherheit & Passwort">
       <TextInput
-        style={[styles.input, { borderColor: Colors[theme].primary, color: Colors[theme].text }]}
+        style={[
+          styles.input,
+          {
+            borderColor: colorTheme.border,
+            color: colorTheme.text,
+            backgroundColor: colorTheme.surface,
+          },
+        ]}
         placeholder="Neues Passwort"
-        placeholderTextColor="#aaa"
+        placeholderTextColor={colorTheme.icon}
         secureTextEntry
         value={newPassword}
         onChangeText={setNewPassword}
       />
       <TextInput
-        style={[styles.input, { borderColor: Colors[theme].primary, color: Colors[theme].text }]}
+        style={[
+          styles.input,
+          {
+            borderColor: colorTheme.border,
+            color: colorTheme.text,
+            backgroundColor: colorTheme.surface,
+          },
+        ]}
         placeholder="Neues Passwort wiederholen"
-        placeholderTextColor="#aaa"
+        placeholderTextColor={colorTheme.icon}
         secureTextEntry
         value={repeatPassword}
         onChangeText={setRepeatPassword}
       />
       <TouchableOpacity
         onPress={onChangePassword}
-        style={[styles.saveButton, { backgroundColor: Colors[theme].primary }]}
+        style={[
+          styles.saveButton,
+          {
+            backgroundColor: theme === 'dark' ? '#FFFFFF' : '#000000',
+          },
+        ]}
+        activeOpacity={0.9}
       >
-        <Text style={styles.saveButtonText}>🔁 Passwort speichern</Text>
+        <Text
+          style={[
+            styles.saveButtonText,
+            {
+              color: theme === 'dark' ? '#000000' : '#FFFFFF',
+            },
+          ]}
+        >
+          🔒 Passwort speichern
+        </Text>
       </TouchableOpacity>
     </ProfileSection>
   );
@@ -57,23 +87,22 @@ const PasswordSection: React.FC<Props> = ({
 
 const styles = StyleSheet.create({
   input: {
-    borderWidth: 1.5,
+    borderWidth: 1,
     borderRadius: 10,
     paddingHorizontal: 14,
-    paddingVertical: 10,
+    paddingVertical: 12,
     fontSize: 16,
     marginBottom: 14,
-    backgroundColor: 'rgba(255,255,255,0.05)',
   },
   saveButton: {
-    marginTop: 12,
-    padding: 14,
+    marginTop: 8,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
     borderRadius: 12,
     alignItems: 'center',
   },
   saveButtonText: {
-    color: '#fff',
-    fontWeight: 'bold',
+    fontWeight: '600',
     fontSize: 16,
   },
 });

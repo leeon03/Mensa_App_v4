@@ -1,14 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import {
-  View,
   Text,
   StyleSheet,
-  TouchableOpacity,
-  LayoutAnimation,
   Alert,
   ScrollView,
   Platform,
   UIManager,
+  View,
 } from 'react-native';
 import { useColorScheme } from 'react-native';
 import { Colors } from '../constants/Colors';
@@ -18,12 +16,16 @@ import { supabase } from '../constants/supabase';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import Avatar from '../components/Avatar';
 import * as Animatable from 'react-native-animatable';
-import ProfileSection from '../components/profile/profileSection';
+
 import PersonalInfoSection from '../components/profile/personalInfoSection';
 import NotificationSection from '../components/profile/notificationSection';
 import PasswordSection from '../components/profile/passwortSection';
+import AccountActionsSection from '../components/profile/accountActionSection';
 
-if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+if (
+  Platform.OS === 'android' &&
+  UIManager.setLayoutAnimationEnabledExperimental
+) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
@@ -44,8 +46,6 @@ function ProfileContent() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [createdAt, setCreatedAt] = useState('');
-  const [notifyFavs, setNotifyFavs] = useState(true);
-  const [notifyNews, setNotifyNews] = useState(false);
   const [userId, setUserId] = useState('');
   const [userAvatar, setUserAvatar] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -54,7 +54,10 @@ function ProfileContent() {
 
   useEffect(() => {
     const loadUserData = async () => {
-      const { data: { user }, error } = await supabase.auth.getUser();
+      const {
+        data: { user },
+        error,
+      } = await supabase.auth.getUser();
 
       if (error || !user) {
         Alert.alert('Fehler beim Laden der Benutzerdaten');
@@ -141,6 +144,29 @@ function ProfileContent() {
     router.replace('/');
   };
 
+  const handleDeleteAccount = () => {
+    Alert.alert(
+      'Konto löschen',
+      'Bist du sicher? Dieser Vorgang kann nicht rückgängig gemacht werden.',
+      [
+        { text: 'Abbrechen', style: 'cancel' },
+        {
+          text: 'Löschen',
+          style: 'destructive',
+          onPress: async () => {
+            const { error } = await supabase.rpc('delete_current_user'); // sichere Methode
+            if (error) {
+              Alert.alert('Fehler', 'Konto konnte nicht gelöscht werden.');
+              return;
+            }
+            Alert.alert('Konto gelöscht', 'Du wurdest abgemeldet.');
+            router.replace('/');
+          },
+        },
+      ]
+    );
+  };
+
   const clearStorage = () => {
     Alert.alert('App zurücksetzen', 'Alle gespeicherten Daten wirklich löschen?', [
       { text: 'Abbrechen', style: 'cancel' },
@@ -156,7 +182,12 @@ function ProfileContent() {
   };
 
   return (
-    <ScrollView contentContainerStyle={[styles.container, { backgroundColor: Colors[theme].background }]}>
+    <ScrollView
+      contentContainerStyle={[
+        styles.container,
+        { backgroundColor: Colors[theme].background },
+      ]}
+    >
       <Animatable.Text
         animation="fadeInDown"
         duration={700}
@@ -166,12 +197,14 @@ function ProfileContent() {
         Profil
       </Animatable.Text>
 
-      <Avatar
-        name={name}
-        avatarUri={userAvatar}
-        userId={userId}
-        onUpload={(url) => setUserAvatar(url)}
-      />
+      <View style={{ alignItems: 'center', marginBottom: 24 }}>
+        <Avatar
+          name={name}
+          avatarUri={userAvatar}
+          userId={userId}
+          onUpload={(url) => setUserAvatar(url)}
+        />
+      </View>
 
       <PersonalInfoSection
         name={name}
@@ -180,12 +213,7 @@ function ProfileContent() {
         favoritesCount={favoritesCount}
       />
 
-      <NotificationSection
-        notifyFavs={notifyFavs}
-        notifyNews={notifyNews}
-        setNotifyFavs={setNotifyFavs}
-        setNotifyNews={setNotifyNews}
-      />
+      <NotificationSection userId={userId} />
 
       <PasswordSection
         newPassword={newPassword}
@@ -195,19 +223,11 @@ function ProfileContent() {
         onChangePassword={handlePasswordChange}
       />
 
-      <ProfileSection title="App-Verwaltung">
-        <TouchableOpacity onPress={updateProfile} style={[styles.saveButton, { backgroundColor: Colors[theme].primary }]}>
-          <Text style={styles.saveButtonText}>💾 Profil speichern</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity onPress={clearStorage} style={styles.resetButton}>
-          <Text style={styles.resetButtonText}>🗑️ AsyncStorage zurücksetzen</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity onPress={handleLogout} style={[styles.logoutButton, { backgroundColor: Colors[theme].primary }]}>
-          <Text style={styles.logoutButtonText}>🚪 Abmelden</Text>
-        </TouchableOpacity>
-      </ProfileSection>
+      <AccountActionsSection
+        onSave={updateProfile}
+        onLogout={handleLogout}
+        onDeleteAccount={handleDeleteAccount}
+      />
     </ScrollView>
   );
 }
@@ -223,45 +243,5 @@ const styles = StyleSheet.create({
     marginBottom: 24,
     textTransform: 'uppercase',
     letterSpacing: 1.5,
-  },
-  saveButton: {
-    marginTop: 12,
-    padding: 14,
-    borderRadius: 12,
-    alignItems: 'center',
-  },
-  saveButtonText: {
-    color: '#fff',
-    fontWeight: 'bold',
-    fontSize: 16,
-  },
-  resetButton: {
-    marginTop: 12,
-    padding: 12,
-    backgroundColor: '#ddd',
-    borderRadius: 10,
-    alignSelf: 'center',
-  },
-  resetButtonText: {
-    color: '#000',
-    fontWeight: 'bold',
-  },
-  logoutButton: {
-    marginTop: 24,
-    paddingVertical: 14,
-    paddingHorizontal: 24,
-    borderRadius: 14,
-    alignItems: 'center',
-    width: '100%',
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOpacity: 0.15,
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 4,
-  },
-  logoutButtonText: {
-    color: '#fff',
-    fontWeight: 'bold',
-    fontSize: 16,
   },
 });

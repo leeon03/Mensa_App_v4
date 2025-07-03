@@ -1,70 +1,88 @@
-// components/ProfileSection.tsx
 import React, { useState } from 'react';
 import {
   View,
   Text,
   TouchableOpacity,
-  StyleSheet,
   LayoutAnimation,
-  Platform,
-  UIManager,
+  StyleSheet,
+  useColorScheme,
 } from 'react-native';
-import { useColorScheme } from 'react-native';
 import { Colors } from '../../constants/Colors';
-
-if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
-  UIManager.setLayoutAnimationEnabledExperimental(true);
-}
+import { Ionicons } from '@expo/vector-icons';
 
 interface Props {
   title: string;
   children: React.ReactNode;
   initiallyExpanded?: boolean;
-  showDivider?: boolean;
 }
 
 const ProfileSection: React.FC<Props> = ({
   title,
   children,
   initiallyExpanded = false,
-  showDivider = true,
 }) => {
-  const theme = useColorScheme() || 'light';
   const [expanded, setExpanded] = useState(initiallyExpanded);
+  const theme = useColorScheme() || 'light';
 
   const toggleExpanded = () => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-    setExpanded(!expanded);
+    setExpanded((prev) => !prev);
   };
 
   return (
-    <View style={[styles.wrapper, showDivider && { borderBottomWidth: 1, borderColor: '#ccc' }]}>
-      <TouchableOpacity onPress={toggleExpanded} style={styles.header}>
-        <Text style={[styles.title, { color: Colors[theme].text }]}>
-          {expanded ? '⌄' : '›'} {title}
+    <View style={styles.sectionContainer}>
+      <TouchableOpacity
+        onPress={toggleExpanded}
+        style={[
+          styles.header,
+          {
+            backgroundColor: 'transparent',
+            borderColor: Colors[theme].border,
+          },
+        ]}
+        activeOpacity={0.8}
+      >
+        <Ionicons
+          name={expanded ? 'chevron-down' : 'chevron-forward'}
+          size={20}
+          color={Colors[theme].text}
+          style={{ marginRight: 8 }}
+        />
+        <Text style={[styles.titleText, { color: Colors[theme].text }]}>
+          {title}
         </Text>
       </TouchableOpacity>
 
-      {expanded && <View style={styles.content}>{children}</View>}
+      {expanded && (
+        <View style={[styles.content, { backgroundColor: Colors[theme].background }]}>
+          {children}
+        </View>
+      )}
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  wrapper: {
-    marginBottom: 24,
-    width: '100%',
+  sectionContainer: {
+    marginBottom: 16,
+    borderRadius: 12,
+    overflow: 'hidden',
+    elevation: 1,
   },
   header: {
-    paddingVertical: 12,
-    paddingHorizontal: 4,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderBottomWidth: StyleSheet.hairlineWidth,
   },
-  title: {
-    fontSize: 18,
+  titleText: {
+    fontSize: 17,
     fontWeight: '600',
   },
   content: {
-    marginTop: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
   },
 });
 
