@@ -86,7 +86,7 @@ export default function GerichtDetailScreen() {
             users (
               first_name,
               last_name,
-              avatar_data
+              avatar_url
             )
           `)
           .eq('gericht_id', gericht.id);
@@ -127,7 +127,7 @@ export default function GerichtDetailScreen() {
         users (
           first_name,
           last_name,
-          avatar_data
+          avatar_url
         )
       `)
       .eq('gericht_id', gericht.id);
@@ -142,7 +142,7 @@ export default function GerichtDetailScreen() {
       user: `${b.users?.first_name ?? ''} ${b.users?.last_name ?? ''}`.trim() || 'Unbekannt',
       text: b.kommentar || '',
       stars: b.stars,
-      avatarUri: b.users?.avatar_data || null,
+      avatarUri: b.users?.avatar_url || null,
       timestamp: b.created_at || '',
       own: b.user_id === userId,
     }));
