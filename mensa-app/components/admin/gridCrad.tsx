@@ -23,10 +23,9 @@ type Gericht = {
 type GridCardProps = {
   item: Gericht;
   onPress: (item: Gericht) => void;
-  onFavoriteToggle: (name: string) => void;
 };
 
-const GridCard: React.FC<GridCardProps> = ({ item, onPress, onFavoriteToggle }) => {
+const GridCard: React.FC<GridCardProps> = ({ item, onPress }) => {
   const theme = useColorScheme() || 'light';
   const themeColor = Colors[theme];
 
@@ -62,16 +61,6 @@ const GridCard: React.FC<GridCardProps> = ({ item, onPress, onFavoriteToggle }) 
               <Ionicons name="fast-food-outline" size={32} color={themeColor.text} />
             </View>
           )}
-          <Pressable
-            onPress={() => onFavoriteToggle(item.name)}
-            style={styles.favoriteButton}
-          >
-            <Ionicons
-              name={item.isFavorite ? 'heart' : 'heart-outline'}
-              size={18}
-              color={item.isFavorite ? '#e74c3c' : '#FFF'}
-            />
-          </Pressable>
         </View>
         <View style={styles.content}>
           <Text style={[styles.title, { color: themeColor.text }]} numberOfLines={1}>
@@ -86,17 +75,14 @@ const GridCard: React.FC<GridCardProps> = ({ item, onPress, onFavoriteToggle }) 
   );
 };
 
-// 📦 Listendarstellung mit zwei Karten nebeneinander
 type GridListProps = {
   daten: Gericht[];
   onGerichtPress: (item: Gericht) => void;
-  onFavoriteToggle: (name: string) => void;
 };
 
 export const GridCardList: React.FC<GridListProps> = ({
   daten,
   onGerichtPress,
-  onFavoriteToggle,
 }) => {
   return (
     <FlatList
@@ -107,7 +93,6 @@ export const GridCardList: React.FC<GridListProps> = ({
         <GridCard
           item={item}
           onPress={onGerichtPress}
-          onFavoriteToggle={onFavoriteToggle}
         />
       )}
       contentContainerStyle={styles.container}
@@ -117,10 +102,9 @@ export const GridCardList: React.FC<GridListProps> = ({
   );
 };
 
-// 📐 Kartenbreite – angepasst für 2 Spalten + spacing (16px Abstand)
 const SPACING = 16;
 const SCREEN_WIDTH = Dimensions.get('window').width;
-const CARD_WIDTH = Math.floor((SCREEN_WIDTH - SPACING * 3) / 2); // 2 Cards + 3x 8px Abstand
+const CARD_WIDTH = Math.floor((SCREEN_WIDTH - SPACING * 3) / 2);
 
 const styles = StyleSheet.create({
   container: {
@@ -156,14 +140,6 @@ const styles = StyleSheet.create({
     height: 100,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  favoriteButton: {
-    position: 'absolute',
-    top: 6,
-    right: 6,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    padding: 4,
-    borderRadius: 20,
   },
   content: {
     padding: 8,
