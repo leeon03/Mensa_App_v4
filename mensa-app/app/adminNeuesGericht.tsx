@@ -7,12 +7,15 @@ import {
   TouchableOpacity,
   Alert,
   ScrollView,
+  Image,
+  ActivityIndicator,
 } from 'react-native';
 import { useColorScheme } from 'react-native';
 import { Colors } from '../constants/Colors';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { supabase } from '../constants/supabase';
+import * as ImagePicker from 'expo-image-picker';
 
 type KeyboardTypeOption =
   | 'default'
@@ -34,20 +37,33 @@ export default function AdminNeuesGericht() {
   const themeColor = Colors[theme];
   const router = useRouter();
 
+  const verfügbareTags = [
+    'Vegan',
+    'Vegetarisch',
+    'Leicht',
+    'Glutenfrei',
+    'Scharf',
+    'Fleischhaltig',
+    'Fischhaltig',
+    'Beliebt',
+    'Favorit',
+    'Erinnerung',
+  ];
+
   const [name, setName] = useState('');
   const [anzeigename, setAnzeigename] = useState('');
   const [beschreibung, setBeschreibung] = useState('');
   const [kategorie, setKategorie] = useState('');
   const [preis, setPreis] = useState('');
-  const [tags, setTags] = useState('');
-  const [bildUrl, setBildUrl] = useState('');
   const [zutaten, setZutaten] = useState('');
   const [naehrwerteKcal, setNaehrwerteKcal] = useState('');
   const [naehrwerteFett, setNaehrwerteFett] = useState('');
   const [naehrwerteEiweiss, setNaehrwerteEiweiss] = useState('');
   const [naehrwerteKohlenhydrate, setNaehrwerteKohlenhydrate] = useState('');
   const [metaGeneriert, setMetaGeneriert] = useState(false);
-
+  const [tags, setTags] = useState<string[]>([]);
+  const [bildBase64, setBildBase64] = useState<string | null>(null);
+  const [loadingImage, setLoadingImage] = useState(false);
   const [expandedSections, setExpandedSections] = useState<string[]>([]);
 
   const toggleSection = (section: string) => {
@@ -56,28 +72,100 @@ export default function AdminNeuesGericht() {
     );
   };
 
-  const handleSpeichern = async () => {
-    if (!name || !anzeigename || !preis) {
-      Alert.alert('Fehler', 'Name, Anzeigename und Preis sind Pflichtfelder.');
+  const handleSelectImage = async (source: 'camera' | 'gallery') => {
+    const pickerResult =
+      source === 'camera'
+        ? await ImagePicker.launchCameraAsync({
+            allowsEditing: true,
+            aspect: [1, 1],
+            quality: 0.8,
+            base64: true,
+          })
+        : await ImagePicker.launchImageLibraryAsync({
+            allowsEditing: true,
+            aspect: [1, 1],
+            quality: 0.8,
+            base64: true,
+          });
+
+    if (pickerResult.canceled) return;
+
+    const base64 = pickerResult.assets?.[0]?.base64;
+    if (!base64) {
+      Alert.alert('Fehler', 'Bild konnte nicht geladen werden.');
       return;
     }
 
+    const base64DataUrl = `data:image/jpeg;base64,${base64}`;
+    setBildBase64(base64DataUrl);
+  };
+
+  const openImageOptions = () => {
+    Alert.alert('Bild auswählen', 'Wähle eine Option:', [
+      { text: 'Kamera', onPress: () => handleSelectImage('camera') },
+      { text: 'Galerie', onPress: () => handleSelectImage('gallery') },
+      { text: 'Abbrechen', style: 'cancel' },
+    ]);
+  };
+
+  const handleSpeichern = async () => {
+    const fehlendeFelder: string[] = [];
+  
+    if (!name.trim()) fehlendeFelder.push('Name');
+    if (!anzeigename.trim()) fehlendeFelder.push('Anzeigename');
+    if (!preis.trim()) fehlendeFelder.push('Preis');
+    if (!kategorie.trim()) fehlendeFelder.push('Kategorie');
+    if (!bildBase64) fehlendeFelder.push('Bild');
+    if (!tags || tags.length === 0) fehlendeFelder.push('Tags');
+  
+    if (fehlendeFelder.length > 0) {
+      Alert.alert(
+        'Fehlende Angaben',
+        `Bitte fülle folgende Felder aus:\n\n- ${fehlendeFelder.join('\n- ')}`
+      );
+      return;
+    }
+
+      // 🧪 Debug: Alle Werte loggen
+  console.log('📦 Gericht wird gespeichert mit folgenden Werten:');
+  console.log('Name:', name);
+  console.log('Anzeigename:', anzeigename);
+  console.log('Beschreibung:', beschreibung);
+  console.log('Kategorie:', kategorie);
+  console.log('Preis:', preis);
+  console.log('Tags:', tags);
+  console.log('Bild (Base64 gekürzt):', bildBase64?.substring(0, 50) + '...');
+  console.log('Zutaten:', zutaten);
+  console.log('Nährwerte kcal:', naehrwerteKcal);
+  console.log('Nährwerte Fett:', naehrwerteFett);
+  console.log('Nährwerte Eiweiß:', naehrwerteEiweiss);
+  console.log('Nährwerte Kohlenhydrate:', naehrwerteKohlenhydrate);
+  console.log('Meta generiert:', metaGeneriert);
+
+
+
     const { error } = await supabase.from('gerichte').insert({
-      name,
-      anzeigename,
-      beschreibung,
-      kategorie,
-      preis: parseFloat(preis),
-      tags: tags.split(',').map((t) => t.trim()),
-      bild_url: bildUrl,
-      zutaten,
-      naehrwerte_kcal: parseFloat(naehrwerteKcal) || null,
-      naehrwerte_fett: parseFloat(naehrwerteFett) || null,
-      naehrwerte_eiweiss: parseFloat(naehrwerteEiweiss) || null,
-      naehrwerte_kohlenhydrate: parseFloat(naehrwerteKohlenhydrate) || null,
-      datum: new Date().toISOString().split('T')[0],
-      meta_generiert: metaGeneriert,
-    });
+  name,
+  anzeigename,
+  beschreibung: beschreibung || null,
+  kategorie,
+  preis: parseFloat(preis),
+  tags: Array.isArray(tags) ? tags : [],
+  bild_url: bildBase64 || null,
+  zutaten:
+    zutaten.trim() === ''
+      ? []
+      : zutaten
+          .split(',')
+          .map((z) => z.trim())
+          .filter((z) => z.length > 0),
+  naehrwerte_kcal: parseFloat(naehrwerteKcal) || null,
+  naehrwerte_fett: parseFloat(naehrwerteFett) || null,
+  naehrwerte_eiweiss: parseFloat(naehrwerteEiweiss) || null,
+  naehrwerte_kohlenhydrate: parseFloat(naehrwerteKohlenhydrate) || null,
+  datum: new Date().toISOString().split('T')[0],
+  meta_generiert: metaGeneriert,
+});
 
     if (error) {
       Alert.alert('Fehler beim Speichern', error.message);
@@ -93,6 +181,68 @@ export default function AdminNeuesGericht() {
       <View style={styles.container}>
         <Text style={[styles.title, { color: themeColor.text }]}>Neues Gericht anlegen</Text>
 
+        {/* Bildauswahl */}
+        <View style={{ alignItems: 'center', marginVertical: 16 }}>
+          <TouchableOpacity onPress={openImageOptions}>
+            {loadingImage ? (
+              <ActivityIndicator size="large" color={themeColor.text} />
+            ) : bildBase64 ? (
+              <Image
+                source={{ uri: bildBase64 }}
+                style={{ width: 120, height: 120, borderRadius: 60, marginBottom: 8 }}
+              />
+            ) : (
+              <View
+                style={{
+                  width: 120,
+                  height: 120,
+                  borderRadius: 60,
+                  backgroundColor: '#ccc',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  marginBottom: 8,
+                }}
+              >
+                <Ionicons name="image-outline" size={40} color="#fff" />
+              </View>
+            )}
+            <Text style={{ color: themeColor.text, textAlign: 'center' }}>Bild wählen / ändern</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Tags Auswahl */}
+        <View style={{ marginBottom: 16 }}>
+          <Text style={[styles.sectionTitle, { color: themeColor.text, marginBottom: 8 }]}>
+            Tags auswählen
+          </Text>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+            {verfügbareTags.map((tag) => {
+              const selected = tags.includes(tag);
+              return (
+                <TouchableOpacity
+                  key={tag}
+                  onPress={() =>
+                    setTags((prev) =>
+                      prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]
+                    )
+                  }
+                  style={{
+                    paddingVertical: 6,
+                    paddingHorizontal: 12,
+                    backgroundColor: selected ? '#e57373' : '#eee',
+                    borderRadius: 20,
+                    marginRight: 8,
+                    marginBottom: 8,
+                  }}
+                >
+                  <Text style={{ color: selected ? '#fff' : '#333' }}>{tag}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </View>
+
+        {/* Eingabefelder */}
         {[
           { label: 'Name *', description: 'Der Name des Gerichts.', value: name, setValue: setName },
           {
@@ -109,28 +259,16 @@ export default function AdminNeuesGericht() {
           },
           {
             label: 'Kategorie',
-            description: 'Die Kategorie des Gerichts (z. B. Hauptgericht, Dessert).',
+            description: 'Die Kategorie des Gerichts.',
             value: kategorie,
             setValue: setKategorie,
           },
           {
             label: 'Preis *',
-            description: 'Der Preis des Gerichts (z. B. 4.50).',
+            description: 'Der Preis des Gerichts.',
             value: preis,
             setValue: setPreis,
             keyboardType: 'decimal-pad' as KeyboardTypeOption,
-          },
-          {
-            label: 'Tags',
-            description: 'Tags für das Gericht (z. B. vegan, scharf).',
-            value: tags,
-            setValue: setTags,
-          },
-          {
-            label: 'Bild-URL',
-            description: 'Die URL für das Bild des Gerichts.',
-            value: bildUrl,
-            setValue: setBildUrl,
           },
           {
             label: 'Zutaten',
