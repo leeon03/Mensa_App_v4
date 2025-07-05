@@ -147,7 +147,7 @@ function FavoritesInner() {
                   bewertungen={[]} // Favoriten haben keine Bewertungen geladen
                   tags={gericht.tags || []}
                   preis={parseFloat(gericht.preis)}
-                  isFavorite={isFavorite(gericht.name)}
+                  isFavorite={true}
                   isAlert={false}
                   onFavoritePress={() => handleRemove(gericht.id, gericht.name)}
                   onAlertPress={() => {}}
