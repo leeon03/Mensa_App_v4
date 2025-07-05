@@ -179,7 +179,8 @@ export default function AdminNeuesGericht() {
   return (
     <ScrollView style={{ backgroundColor: themeColor.background, flex: 1 }}>
       <View style={styles.container}>
-        <Text style={[styles.title, { color: themeColor.text }]}>Neues Gericht anlegen</Text>
+        <Text style={[styles.title, { color: '#d9534f' }]}>NEUES GERICHT</Text>
+
 
         {/* Bildauswahl */}
         <View style={{ alignItems: 'center', marginVertical: 16 }}>
