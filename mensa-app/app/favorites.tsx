@@ -9,11 +9,11 @@ import {
 import { useColorScheme } from 'react-native';
 import { Colors } from '../constants/Colors';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
-import { useFavorites } from '../components/speiseplan_heute/favoritesContext';
 import { supabase } from '../constants/supabase';
 import Card from '../components/ui/card';
 import Legende from '../components/speiseplan_heute/legende';
 import { useRouter } from 'expo-router';
+import { useFavorites } from '../components/speiseplan_heute/favoritesContext';
 
 export default function FavoritesScreen() {
   return (
@@ -26,8 +26,12 @@ export default function FavoritesScreen() {
 function FavoritesInner() {
   const theme = useColorScheme() || 'light';
   const themeColor = Colors[theme];
-  const { toggleFavorite, isFavorite } = useFavorites();
   const router = useRouter();
+
+  const { toggleFavorite } = useFavorites(); // ✅ Zugriff auf Context
+  const [gerichte, setGerichte] = useState<Gericht[]>([]);
+  const [loading, setLoading] = useState(true);
+  const animationRefs = useRef<Record<string, Animated.Value>>({});
 
   type Gericht = {
     id: number;
@@ -39,10 +43,6 @@ function FavoritesInner() {
     bild_url: string;
     kategorie?: string;
   };
-
-  const [gerichte, setGerichte] = useState<Gericht[]>([]);
-  const [loading, setLoading] = useState(true);
-  const animationRefs = useRef<Record<string, Animated.Value>>({});
 
   const loadFavoritesFromDB = async () => {
     setLoading(true);
@@ -90,22 +90,41 @@ function FavoritesInner() {
     const key = gerichtId.toString();
     const anim = animationRefs.current[key];
 
-    const confirmed = await toggleFavorite(gerichtId, gerichtName);
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
 
-    if (confirmed && anim) {
+    if (!session?.user) {
+      console.warn('Kein Benutzer angemeldet');
+      return;
+    }
+
+    // ✅ 1. Supabase löschen
+    const { error } = await supabase
+      .from('favorites')
+      .delete()
+      .eq('user_id', session.user.id)
+      .eq('gericht_id', gerichtId);
+
+    if (error) {
+      console.error('Fehler beim Entfernen aus Supabase:', error);
+      return;
+    }
+
+    // ✅ 2. Context aktualisieren (für andere Seiten)
+    await toggleFavorite(gerichtId, gerichtName);
+
+    // ✅ 3. Karte entfernen mit Animation
+    if (anim) {
       Animated.timing(anim, {
         toValue: 0,
         duration: 300,
         useNativeDriver: true,
       }).start(() => {
-        // ✅ Immediately remove the item from UI
         setGerichte((prev) => prev.filter((g) => g.id !== gerichtId));
-
-        // 🔁 Optional: reload from DB after short delay
-        setTimeout(() => {
-          loadFavoritesFromDB();
-        }, 300);
       });
+    } else {
+      setGerichte((prev) => prev.filter((g) => g.id !== gerichtId));
     }
   }, [toggleFavorite]);
 
@@ -147,9 +166,9 @@ function FavoritesInner() {
                   bewertungen={[]} // Favoriten haben keine Bewertungen geladen
                   tags={gericht.tags || []}
                   preis={parseFloat(gericht.preis)}
-                  isFavorite={isFavorite(gericht.name)}
+                  isFavorite={true} // ✅ immer true auf der Favoriten-Seite
                   isAlert={false}
-                  onFavoritePress={() => handleRemove(gericht.id, gericht.name)}
+                  onFavoritePress={() => handleRemove(gericht.id, gericht.name)} // ✅ beide Werte übergeben
                   onAlertPress={() => {}}
                   onPress={() =>
                     router.push({

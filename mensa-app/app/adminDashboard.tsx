@@ -20,7 +20,7 @@ export default function AdminDashboard() {
   const links = [
     {
       icon: 'grid-outline',
-      label: 'Gerichte verwalten (neu)',
+      label: 'Gerichte verwalten',
       route: '/adminGerichte', // 👉 aktualisierte Seite mit Cards
     },
     {

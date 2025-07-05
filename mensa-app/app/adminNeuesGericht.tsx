@@ -126,24 +126,6 @@ export default function AdminNeuesGericht() {
       return;
     }
 
-      // 🧪 Debug: Alle Werte loggen
-  console.log('📦 Gericht wird gespeichert mit folgenden Werten:');
-  console.log('Name:', name);
-  console.log('Anzeigename:', anzeigename);
-  console.log('Beschreibung:', beschreibung);
-  console.log('Kategorie:', kategorie);
-  console.log('Preis:', preis);
-  console.log('Tags:', tags);
-  console.log('Bild (Base64 gekürzt):', bildBase64?.substring(0, 50) + '...');
-  console.log('Zutaten:', zutaten);
-  console.log('Nährwerte kcal:', naehrwerteKcal);
-  console.log('Nährwerte Fett:', naehrwerteFett);
-  console.log('Nährwerte Eiweiß:', naehrwerteEiweiss);
-  console.log('Nährwerte Kohlenhydrate:', naehrwerteKohlenhydrate);
-  console.log('Meta generiert:', metaGeneriert);
-
-
-
     const { error } = await supabase.from('gerichte').insert({
   name,
   anzeigename,
