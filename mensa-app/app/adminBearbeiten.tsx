@@ -2,13 +2,13 @@ import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
-  TextInput,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
   Alert,
   Image,
-  KeyboardAvoidingView,
+  Modal,
+  TextInput,
   Platform,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -26,6 +26,10 @@ export default function AdminBearbeiten() {
 
   const [gericht, setGericht] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+
+  const [modalVisible, setModalVisible] = useState(false);
+  const [activeField, setActiveField] = useState('');
+  const [fieldValue, setFieldValue] = useState('');
 
   const [anzeigename, setAnzeigename] = useState('');
   const [beschreibung, setBeschreibung] = useState('');
@@ -63,6 +67,30 @@ export default function AdminBearbeiten() {
     loadGericht();
   }, [id]);
 
+  const openEditModal = (field: string, value: string) => {
+    setActiveField(field);
+    setFieldValue(value);
+    setModalVisible(true);
+  };
+
+  const saveEditedField = () => {
+    switch (activeField) {
+      case 'beschreibung':
+        setBeschreibung(fieldValue);
+        break;
+      case 'kategorie':
+        setKategorie(fieldValue);
+        break;
+      case 'preis':
+        setPreis(fieldValue);
+        break;
+      case 'tags':
+        setTags(fieldValue);
+        break;
+    }
+    setModalVisible(false);
+  };
+
   const handleSpeichern = async () => {
     if (!anzeigename || !preis) {
       Alert.alert('Fehler', 'Anzeigename und Preis sind Pflichtfelder.');
@@ -87,133 +115,157 @@ export default function AdminBearbeiten() {
     }
   };
 
+  const renderItem = (label: string, value: string, field: string, editable = true) => (
+    <View style={styles.row}>
+      <Text style={[styles.label, { color: themeColor.icon }]}>{label}</Text>
+      <View style={styles.editableRow}>
+        <Text style={[styles.value, { color: themeColor.text }]}>{value}</Text>
+        {editable && (
+          <TouchableOpacity onPress={() => openEditModal(field, value)}>
+            <Ionicons name="pencil-outline" size={18} color={theme === 'dark' ? '#fff' : '#000'} />
+          </TouchableOpacity>
+        )}
+      </View>
+    </View>
+  );
+
   if (loading) return null;
 
   return (
-    <SafeAreaView style={{ flex: 1 }}>
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 80 : 0}
+    <SafeAreaView style={[styles.container, { backgroundColor: themeColor.background }]}>
+      <ScrollView contentContainerStyle={{ paddingBottom: 40 }}>
+        <Text style={[styles.title, { color: '#d9534f' }]}>GERICHT BEARBEITEN</Text>
+
+        {bildUrl ? (
+          <Image source={{ uri: bildUrl }} style={styles.image} resizeMode="cover" />
+        ) : null}
+
+        {renderItem('Anzeigename', anzeigename, '', false)}
+        {renderItem('Beschreibung', beschreibung, 'beschreibung')}
+        {renderItem('Kategorie', kategorie, 'kategorie')}
+        {renderItem('Preis (€)', preis, 'preis')}
+        {renderItem('Tags', tags, 'tags')}
+
+        <TouchableOpacity style={styles.saveButton} onPress={handleSpeichern}>
+          <Ionicons name="save-outline" size={20} color="#fff" style={{ marginRight: 8 }} />
+          <Text style={styles.saveText}>Änderungen speichern</Text>
+        </TouchableOpacity>
+      </ScrollView>
+
+      {/* Modal zum Bearbeiten */}
+      <Modal
+        visible={modalVisible}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setModalVisible(false)}
       >
-        <ScrollView
-          style={{ flex: 1, backgroundColor: themeColor.background }}
-          contentContainerStyle={styles.container}
-        >
-          <Text style={[styles.title, { color: themeColor.accent2 }]}>Gericht bearbeiten</Text>
-
-          {bildUrl ? (
-            <Image
-              source={{ uri: bildUrl }}
-              style={styles.image}
-              resizeMode="cover"
-            />
-          ) : null}
-
-          <View style={[styles.card, { backgroundColor: themeColor.card }]}>
-            <Text style={[styles.label, { color: themeColor.text }]}>Anzeigename</Text>
-            <Text style={[styles.readonlyText, { color: themeColor.text }]}>{anzeigename}</Text>
-
-            <Text style={[styles.label, { color: themeColor.text }]}>Beschreibung</Text>
+        <View style={styles.modalBackdrop}>
+          <View style={[styles.modalContainer, { backgroundColor: themeColor.card }]}>
+            <Text style={[styles.modalTitle, { color: themeColor.text }]}>
+              {activeField} bearbeiten
+            </Text>
             <TextInput
-              value={beschreibung}
-              onChangeText={setBeschreibung}
-              style={[styles.input, { borderColor: themeColor.border, color: themeColor.text }]}
-              multiline
+              style={[styles.input, { color: themeColor.text, borderColor: themeColor.icon }]}
+              value={fieldValue}
+              onChangeText={setFieldValue}
+              multiline={activeField === 'beschreibung'}
+              keyboardType={activeField === 'preis' ? 'decimal-pad' : 'default'}
             />
-
-            <Text style={[styles.label, { color: themeColor.text }]}>Kategorie</Text>
-            <TextInput
-              value={kategorie}
-              onChangeText={setKategorie}
-              style={[styles.input, { borderColor: themeColor.border, color: themeColor.text }]}
-            />
-
-            <Text style={[styles.label, { color: themeColor.text }]}>Preis *</Text>
-            <TextInput
-              value={preis}
-              onChangeText={setPreis}
-              keyboardType="decimal-pad"
-              style={[styles.input, { borderColor: themeColor.border, color: themeColor.text }]}
-            />
-
-            <Text style={[styles.label, { color: themeColor.text }]}>Tags (z. B. vegan, scharf)</Text>
-            <TextInput
-              value={tags}
-              onChangeText={setTags}
-              style={[styles.input, { borderColor: themeColor.border, color: themeColor.text }]}
-            />
-
-            <TouchableOpacity
-              style={[styles.button, { backgroundColor: themeColor.accent1 }]}
-              onPress={handleSpeichern}
-            >
-              <Ionicons name="save-outline" size={20} color="#fff" style={{ marginRight: 8 }} />
-              <Text style={styles.buttonText}>Änderungen speichern</Text>
-            </TouchableOpacity>
+            <View style={styles.modalButtons}>
+              <TouchableOpacity onPress={() => setModalVisible(false)}>
+                <Text style={{ color: '#d9534f' }}>Abbrechen</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={saveEditedField}>
+                <Text style={{ color: '#d9534f' }}>Speichern</Text>
+              </TouchableOpacity>
+            </View>
           </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
+    flex: 1,
     padding: 20,
   },
   title: {
-    fontSize: 26,
-    fontWeight: 'bold',
+    fontSize: 28,
+    fontWeight: '900',
     textAlign: 'center',
-    marginBottom: 20,
+    marginBottom: 24,
     textTransform: 'uppercase',
+    letterSpacing: 1.5,
   },
   image: {
     width: '100%',
     height: 200,
     borderRadius: 12,
-    marginBottom: 20,
+    marginBottom: 24,
   },
-  card: {
-    padding: 20,
-    borderRadius: 12,
-    shadowColor: '#000',
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-    elevation: 2,
+  row: {
+    marginBottom: 16,
   },
   label: {
-    fontWeight: '600',
-    marginBottom: 6,
-    marginTop: 14,
+    fontSize: 13,
+    fontWeight: '500',
+    marginBottom: 2,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
-  input: {
-    borderWidth: 1,
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 8,
-    backgroundColor: 'transparent',
+  editableRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
-  readonlyText: {
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    borderWidth: 1,
-    borderRadius: 8,
-    marginBottom: 12,
-    backgroundColor: '#e0e0e0',
+  value: {
+    fontSize: 16,
+    fontWeight: '400',
+    flex: 1,
+    marginRight: 12,
   },
-  button: {
+  saveButton: {
+    backgroundColor: '#d9534f',
     flexDirection: 'row',
     alignItems: 'center',
     alignSelf: 'flex-start',
     paddingVertical: 12,
     paddingHorizontal: 16,
     borderRadius: 20,
-    marginTop: 20,
+    marginTop: 24,
   },
-  buttonText: {
+  saveText: {
     color: '#fff',
     fontWeight: '600',
+  },
+  modalBackdrop: {
+    flex: 1,
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    padding: 20,
+  },
+  modalContainer: {
+    padding: 20,
+    borderRadius: 10,
+  },
+  modalTitle: {
+    fontSize: 18,
+    marginBottom: 12,
+    fontWeight: 'bold',
+    textTransform: 'capitalize',
+  },
+  input: {
+    borderWidth: 1,
+    borderRadius: 6,
+    padding: 10,
+    fontSize: 16,
+    marginBottom: 20,
+    backgroundColor: 'transparent',
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
   },
 });
