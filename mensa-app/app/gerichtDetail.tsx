@@ -20,6 +20,7 @@ import ZutatenTabelle from '../components/gerichtDetail/zutatenTabelle';
 import GerichtHeader from '../components/gerichtDetail/gerichtHeader';
 import GerichtBewertungHeute from '../components/speiseplan_heute/gerichtBewertungHeute';
 import ImageGallery from '../components/speiseplan_heute/galerie';
+import PaypalButton from '../components/gerichtDetail/paypalButton'; // NEU
 
 const TAGS = [
   { key: 'vegan', label: 'Vegan', icon: 'leaf', color: '#A5D6A7' },
@@ -214,17 +215,8 @@ export default function GerichtDetailScreen() {
             Preis: {parseFloat(gericht.preis).toFixed(2)} €
           </Text>
 
-          <TouchableOpacity
-            style={[styles.paypalButton, { backgroundColor: baseColor }]}
-            onPress={() =>
-              Linking.openURL(
-                `https://www.sandbox.paypal.com/paypalme/deinSandboxName/${parseFloat(gericht.preis).toFixed(2)}`
-              )
-            }
-          >
-            <Ionicons name="logo-paypal" size={18} color="#fff" style={{ marginRight: 6 }} />
-            <Text style={styles.paypalButtonText}>Mit PayPal bezahlen</Text>
-          </TouchableOpacity>
+          {/* PayPal Button mit Komponente */}
+          <PaypalButton amount={parseFloat(gericht.preis)} backgroundColor={baseColor} />
 
           <View style={styles.naehrwerteContainer}>
             <View style={styles.toggleRow}>
@@ -281,22 +273,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     marginBottom: 8,
-  },
-  paypalButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 24,
-    alignSelf: 'flex-start',
-    marginTop: 8,
-    marginBottom: 16,
-  },
-  paypalButtonText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#fff',
   },
   naehrwerteContainer: {
     marginTop: 20,
