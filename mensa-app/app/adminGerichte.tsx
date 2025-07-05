@@ -18,6 +18,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import GridCard, { GridCardList } from '../components/admin/gridCrad';
 import GerichtItem from '../components/admin/gerichtItem';
 import ListItem from '../components/admin/list';
+import { useFocusEffect } from '@react-navigation/native';
 
 export default function AdminGerichte() {
   const [gerichte, setGerichte] = useState<any[]>([]);
@@ -87,9 +88,13 @@ export default function AdminGerichte() {
     };
   }, []);
 
-  useEffect(() => {
-    loadGerichte();
-  }, []);
+  // Beim Fokus der Seite immer neu laden
+  useFocusEffect(
+    React.useCallback(() => {
+      loadGerichte();
+      return () => {};
+    }, [])
+  );
 
   const filteredGerichte =
     searchText.length >= 3
