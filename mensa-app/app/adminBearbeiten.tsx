@@ -9,7 +9,6 @@ import {
   Image,
   Modal,
   TextInput,
-  Platform,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useColorScheme } from 'react-native';
@@ -24,18 +23,32 @@ export default function AdminBearbeiten() {
   const theme = useColorScheme() || 'light';
   const themeColor = Colors[theme];
 
+  const verfügbareTags = [
+    'Vegan',
+    'Vegetarisch',
+    'Leicht',
+    'Glutenfrei',
+    'Scharf',
+    'Fleischhaltig',
+    'Fischhaltig',
+    'Beliebt',
+    'Favorit',
+    'Erinnerung',
+  ];
+
   const [gericht, setGericht] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   const [modalVisible, setModalVisible] = useState(false);
   const [activeField, setActiveField] = useState('');
   const [fieldValue, setFieldValue] = useState('');
+  const [modalTags, setModalTags] = useState<string[]>([]);
 
   const [anzeigename, setAnzeigename] = useState('');
   const [beschreibung, setBeschreibung] = useState('');
   const [kategorie, setKategorie] = useState('');
   const [preis, setPreis] = useState('');
-  const [tags, setTags] = useState('');
+  const [tags, setTags] = useState<string[]>([]);
   const [bildUrl, setBildUrl] = useState('');
 
   useEffect(() => {
@@ -59,7 +72,7 @@ export default function AdminBearbeiten() {
       setBeschreibung(data.beschreibung || '');
       setKategorie(data.kategorie || '');
       setPreis(String(data.preis || ''));
-      setTags((data.tags || []).join(', '));
+      setTags(data.tags || []);
       setBildUrl(data.bild_url || '');
       setLoading(false);
     };
@@ -67,14 +80,21 @@ export default function AdminBearbeiten() {
     loadGericht();
   }, [id]);
 
-  const openEditModal = (field: string, value: string) => {
+  const openEditModal = (field: string, value: string | string[]) => {
     setActiveField(field);
-    setFieldValue(value);
+    if (field === 'tags') {
+      setModalTags(Array.isArray(value) ? value : []);
+    } else {
+      setFieldValue(String(value));
+    }
     setModalVisible(true);
   };
 
   const saveEditedField = () => {
     switch (activeField) {
+      case 'anzeigename':
+        setAnzeigename(fieldValue);
+        break;
       case 'beschreibung':
         setBeschreibung(fieldValue);
         break;
@@ -85,7 +105,7 @@ export default function AdminBearbeiten() {
         setPreis(fieldValue);
         break;
       case 'tags':
-        setTags(fieldValue);
+        setTags(modalTags);
         break;
     }
     setModalVisible(false);
@@ -100,10 +120,11 @@ export default function AdminBearbeiten() {
     const { error } = await supabase
       .from('gerichte')
       .update({
+        anzeigename,
         beschreibung,
         kategorie,
         preis: parseFloat(preis),
-        tags: tags.split(',').map((t) => t.trim()),
+        tags,
       })
       .eq('id', gericht.id);
 
@@ -111,15 +132,19 @@ export default function AdminBearbeiten() {
       Alert.alert('Fehler beim Speichern', error.message);
     } else {
       Alert.alert('Änderungen gespeichert');
+      // 🧠 Stack-Reset vermeiden: Doppelt ersetzen, um keine Duplikate beim Zurückswipen zu erzeugen
       router.replace('/adminGerichte');
+      setTimeout(() => router.replace('/adminGerichte'), 10);
     }
   };
 
-  const renderItem = (label: string, value: string, field: string, editable = true) => (
+  const renderItem = (label: string, value: string | string[], field: string, editable = true) => (
     <View style={styles.row}>
       <Text style={[styles.label, { color: themeColor.icon }]}>{label}</Text>
       <View style={styles.editableRow}>
-        <Text style={[styles.value, { color: themeColor.text }]}>{value}</Text>
+        <Text style={[styles.value, { color: themeColor.text }]}>
+          {Array.isArray(value) ? value.join(', ') : value}
+        </Text>
         {editable && (
           <TouchableOpacity onPress={() => openEditModal(field, value)}>
             <Ionicons name="pencil-outline" size={18} color={theme === 'dark' ? '#fff' : '#000'} />
@@ -140,7 +165,7 @@ export default function AdminBearbeiten() {
           <Image source={{ uri: bildUrl }} style={styles.image} resizeMode="cover" />
         ) : null}
 
-        {renderItem('Anzeigename', anzeigename, '', false)}
+        {renderItem('Anzeigename', anzeigename, 'anzeigename')}
         {renderItem('Beschreibung', beschreibung, 'beschreibung')}
         {renderItem('Kategorie', kategorie, 'kategorie')}
         {renderItem('Preis (€)', preis, 'preis')}
@@ -162,15 +187,47 @@ export default function AdminBearbeiten() {
         <View style={styles.modalBackdrop}>
           <View style={[styles.modalContainer, { backgroundColor: themeColor.card }]}>
             <Text style={[styles.modalTitle, { color: themeColor.text }]}>
-              {activeField} bearbeiten
+              {activeField === 'tags' ? 'Tags bearbeiten' : `${activeField} bearbeiten`}
             </Text>
-            <TextInput
-              style={[styles.input, { color: themeColor.text, borderColor: themeColor.icon }]}
-              value={fieldValue}
-              onChangeText={setFieldValue}
-              multiline={activeField === 'beschreibung'}
-              keyboardType={activeField === 'preis' ? 'decimal-pad' : 'default'}
-            />
+
+            {activeField === 'tags' ? (
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+                {verfügbareTags.map((tag) => {
+                  const selected = modalTags.includes(tag);
+                  return (
+                    <TouchableOpacity
+                      key={tag}
+                      onPress={() =>
+                        setModalTags((prev) =>
+                          prev.includes(tag)
+                            ? prev.filter((t) => t !== tag)
+                            : [...prev, tag]
+                        )
+                      }
+                      style={{
+                        paddingVertical: 6,
+                        paddingHorizontal: 12,
+                        backgroundColor: selected ? '#d9534f' : '#eee',
+                        borderRadius: 20,
+                        marginRight: 8,
+                        marginBottom: 8,
+                      }}
+                    >
+                      <Text style={{ color: selected ? '#fff' : '#333' }}>{tag}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            ) : (
+              <TextInput
+                style={[styles.input, { color: themeColor.text, borderColor: themeColor.icon }]}
+                value={fieldValue}
+                onChangeText={setFieldValue}
+                multiline={activeField === 'beschreibung'}
+                keyboardType={activeField === 'preis' ? 'decimal-pad' : 'default'}
+              />
+            )}
+
             <View style={styles.modalButtons}>
               <TouchableOpacity onPress={() => setModalVisible(false)}>
                 <Text style={{ color: '#d9534f' }}>Abbrechen</Text>
@@ -267,5 +324,6 @@ const styles = StyleSheet.create({
   modalButtons: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    marginTop: 10,
   },
 });
