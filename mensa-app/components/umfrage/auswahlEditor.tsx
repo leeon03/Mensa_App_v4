@@ -1,12 +1,18 @@
 import React from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
+import {
+  View,
+  Text,
+  ScrollView,
+  TouchableOpacity,
+  StyleSheet,
+} from 'react-native';
 
 interface AuswahlEditorProps {
   typ: 'einzelauswahl' | 'mehrfachauswahl';
   gerichte: string[];
   ausgewählteGerichte: string[];
   setAusgewählteGerichte: (gerichte: string[]) => void;
-  hideSelected?: boolean; // Neue optionale Prop
+  hideSelected?: boolean;
 }
 
 export default function AuswahlEditor({
@@ -29,18 +35,24 @@ export default function AuswahlEditor({
   };
 
   return (
-    <>
+    <View style={styles.container}>
       {!hideSelected && (
         <>
           <Text style={styles.label}>Ausgewählte Gerichte:</Text>
           {ausgewählteGerichte.length === 0 ? (
             <Text style={styles.placeholder}>Keine ausgewählt</Text>
           ) : (
-            <View style={styles.auswahlAnzeige}>
+            <View style={styles.auswahlListe}>
               {ausgewählteGerichte.map((g, i) => (
-                <Text key={`${g}-${i}`} style={styles.auswahlItem}>
-                  {i + 1}. {g}
-                </Text>
+                <View key={`${g}-${i}`} style={styles.item}>
+                  <View style={styles.badge}>
+                    <Text style={styles.badgeText}>{i + 1}</Text>
+                  </View>
+                  <Text style={styles.itemText}>{g}</Text>
+                  <TouchableOpacity onPress={() => handleToggle(g)}>
+                    <Text style={styles.removeX}>×</Text>
+                  </TouchableOpacity>
+                </View>
               ))}
             </View>
           )}
@@ -50,14 +62,15 @@ export default function AuswahlEditor({
       <Text style={styles.label}>Gerichte auswählen:</Text>
       <ScrollView style={{ maxHeight: 250 }}>
         {gerichte.map((gericht, idx) => {
-          const istAusgewählt = ausgewählteGerichte.includes(gericht);
+          const selected = ausgewählteGerichte.includes(gericht);
           return (
-            <TouchableOpacity key={`${gericht}-${idx}`} onPress={() => handleToggle(gericht)}>
+            <TouchableOpacity
+              key={`${gericht}-${idx}`}
+              style={[styles.gerichtItem, selected && styles.gerichtItemSelected]}
+              onPress={() => handleToggle(gericht)}
+            >
               <Text
-                style={[
-                  styles.gerichtOption,
-                  istAusgewählt && styles.selectedGerichtOption,
-                ]}
+                style={[styles.gerichtText, selected && styles.gerichtTextSelected]}
               >
                 {gericht}
               </Text>
@@ -65,40 +78,81 @@ export default function AuswahlEditor({
           );
         })}
       </ScrollView>
-    </>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  container: {
+    padding: 16,
+  },
   label: {
-    marginTop: 16,
-    fontWeight: 'bold',
+    fontWeight: '600',
+    fontSize: 15,
+    marginBottom: 12,
+    color: '#222',
   },
   placeholder: {
     fontStyle: 'italic',
     color: '#888',
     marginBottom: 8,
   },
-  auswahlAnzeige: {
-    marginTop: 8,
-    marginBottom: 12,
-    padding: 10,
-    backgroundColor: '#fef6f6',
-    borderRadius: 8,
+  auswahlListe: {
+    marginBottom: 16,
+  },
+  item: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    padding: 12,
+    borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#ddd',
+    borderColor: '#eee',
+    marginBottom: 10,
+    shadowColor: '#000',
+    shadowOpacity: 0.03,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
   },
-  auswahlItem: {
-    fontSize: 14,
-    marginBottom: 4,
+  badge: {
+    backgroundColor: '#d9534f',
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
   },
-  gerichtOption: {
+  badgeText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 13,
+  },
+  itemText: {
+    flex: 1,
+    fontSize: 15,
+    color: '#333',
+  },
+  removeX: {
+    color: '#d9534f',
+    fontSize: 20,
+    fontWeight: '600',
+    paddingHorizontal: 6,
+  },
+  gerichtItem: {
     padding: 10,
     borderBottomWidth: 1,
-    borderBottomColor: '#eee',
+    borderColor: '#eee',
   },
-  selectedGerichtOption: {
-    backgroundColor: '#fdecea',
+  gerichtItemSelected: {
+    backgroundColor: '#ffe6e6',
+  },
+  gerichtText: {
+    fontSize: 15,
+    color: '#555',
+  },
+  gerichtTextSelected: {
+    color: '#d9534f',
     fontWeight: 'bold',
   },
 });
