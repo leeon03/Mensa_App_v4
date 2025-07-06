@@ -7,6 +7,7 @@ import {
   Image,
   Platform,
   Animated,
+  Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useColorScheme } from 'react-native';
@@ -15,6 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { supabase } from '../constants/supabase';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
+import UmfrageVorschau from '../components/umfrage/umfrageVorschau';
 
 export default function HomeScreen() {
   return (
@@ -29,6 +31,13 @@ function InnerHomeScreen() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [userId, setUserId] = useState<string | null>(null);
+
+  const [umfrageVisible, setUmfrageVisible] = useState(false);
+  const [umfrageFrage, setUmfrageFrage] = useState('');
+  const [umfrageTyp, setUmfrageTyp] = useState<'freitext' | 'einzelauswahl' | 'mehrfachauswahl' | 'ranking'>('einzelauswahl');
+  const [umfrageAntworten, setUmfrageAntworten] = useState<string[]>([]);
+  const [umfrageId, setUmfrageId] = useState<string | null>(null);
 
   const logoSource =
     theme === 'dark'
@@ -40,39 +49,78 @@ function InnerHomeScreen() {
   useEffect(() => {
     const checkUserStatus = async () => {
       const { data: { user }, error: authError } = await supabase.auth.getUser();
-
       if (!user || authError) {
         router.replace('/userLogin');
         return;
       }
 
-      const { data: onboardingData, error: onboardingError } = await supabase
+      setUserId(user.id);
+
+      // Onboarding prüfen
+      const { data: onboardingData } = await supabase
         .from('intro_flags')
         .select('onboarding_seen')
         .eq('user_id', user.id)
         .single();
 
-      if (onboardingError && onboardingError.code !== 'PGRST116') {
-        console.error('Fehler beim Laden von onboarding_seen:', onboardingError);
-        return;
-      }
-
-      const hasSeenOnboarding = onboardingData?.onboarding_seen ?? false;
-      if (!hasSeenOnboarding) {
+      if (!onboardingData?.onboarding_seen) {
         router.replace('/onboardingscreen');
         return;
       }
 
-      const { data: userData, error: userError } = await supabase
+      // Rolle prüfen
+      const { data: userData } = await supabase
         .from('users')
         .select('role')
         .eq('id', user.id)
         .single();
 
-      if (userError) {
-        console.error('Fehler beim Abrufen der Rolle:', userError);
-      } else {
-        setIsAdmin(userData.role === 'admin');
+      setIsAdmin(userData?.role === 'admin');
+
+      // Alle aktiven Umfragen laden
+      const { data: umfragenData, error } = await supabase
+        .from('umfragen')
+        .select('id, frage, typ, antwortoptionen, sichtbar_fuer')
+        .eq('aktiv', true)
+        .order('created_at', { ascending: true });
+
+      if (error || !umfragenData) {
+        console.error('Fehler beim Laden der Umfragen:', error);
+        setLoading(false);
+        return;
+      }
+
+      // Bisherige Antworten dieses Users laden
+      const { data: antwortenData } = await supabase
+        .from('umfrage_antworten')
+        .select('umfrage_id')
+        .eq('user_id', user.id);
+
+      const beantworteteIds = new Set(antwortenData?.map((a) => a.umfrage_id));
+
+      // Ggf. zugewiesene Umfragen laden (wenn sichtbar_fuer = ausgewählte)
+      const { data: userZuordnung } = await supabase
+        .from('user_umfragen')
+        .select('umfrage_id')
+        .eq('user_id', user.id);
+
+      const zugewieseneIds = new Set(userZuordnung?.map((z) => z.umfrage_id));
+
+      // Filter: Sichtbare & unbeantwortete Umfragen
+      const sichtbareUmfragen = umfragenData.filter((umfrage) => {
+        const sichtbar =
+          umfrage.sichtbar_fuer === 'alle' || zugewieseneIds.has(umfrage.id);
+        const unbeantwortet = !beantworteteIds.has(umfrage.id);
+        return sichtbar && unbeantwortet;
+      });
+
+      if (sichtbareUmfragen.length > 0) {
+        const umfrage = sichtbareUmfragen[0];
+        setUmfrageId(umfrage.id);
+        setUmfrageFrage(umfrage.frage);
+        setUmfrageTyp(umfrage.typ);
+        setUmfrageAntworten(umfrage.antwortoptionen || []);
+        setUmfrageVisible(true);
       }
 
       setLoading(false);
@@ -81,12 +129,73 @@ function InnerHomeScreen() {
     checkUserStatus();
   }, []);
 
-  if (loading) {
-    return null;
-  }
+  const handleUmfrageAbschicken = async (antwort: any) => {
+    if (!userId || !umfrageId || !umfrageTyp) return;
+
+    const { error: insertError } = await supabase
+      .from('umfrage_antworten')
+      .insert([
+        {
+          user_id: userId,
+          umfrage_id: umfrageId,
+          antwort_typ: umfrageTyp,
+          antwort,
+        },
+      ]);
+
+    if (insertError) {
+      Alert.alert('Fehler beim Speichern der Antwort', insertError.message);
+      return;
+    }
+
+    let flatRows: { option: string; rang?: number | null }[] = [];
+
+    if (umfrageTyp === 'einzelauswahl') {
+      flatRows = [{ option: antwort }];
+    } else if (umfrageTyp === 'mehrfachauswahl') {
+      flatRows = antwort.map((opt: string) => ({ option: opt }));
+    } else if (umfrageTyp === 'ranking') {
+      flatRows = antwort.map((opt: string, i: number) => ({
+        option: opt,
+        rang: i + 1,
+      }));
+    }
+
+    if (flatRows.length > 0) {
+      const flatInsert = flatRows.map((row) => ({
+        user_id: userId,
+        umfrage_id: umfrageId,
+        option: row.option,
+        rang: row.rang ?? null,
+      }));
+
+      const { error: flatError } = await supabase
+        .from('umfrage_antwortoptionen_flat')
+        .insert(flatInsert);
+
+      if (flatError) {
+        Alert.alert('Fehler beim Einfügen der Antwortoptionen', flatError.message);
+        return;
+      }
+    }
+
+    setUmfrageVisible(false);
+  };
+
+  if (loading) return null;
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: Colors[theme].background }]}>
+      <UmfrageVorschau
+        visible={umfrageVisible}
+        frage={umfrageFrage}
+        typ={umfrageTyp}
+        antworten={umfrageAntworten}
+        onClose={() => setUmfrageVisible(false)}
+        interaktiv={true}
+        onSubmit={handleUmfrageAbschicken}
+      />
+
       <View style={styles.topBar}>
         <AnimatedIcon
           name="heart-outline"
@@ -129,28 +238,18 @@ function InnerHomeScreen() {
         />
         {isAdmin && (
           <PrimaryButton
-          icon="settings-outline"
-          label="Admin Panel"
-          color="#d9534f"
-          onPress={() => router.push('/adminDashboard')} // ✅ ganz einfach
-        />        
+            icon="settings-outline"
+            label="Admin Panel"
+            color="#d9534f"
+            onPress={() => router.push('/adminDashboard')}
+          />
         )}
       </View>
     </SafeAreaView>
   );
 }
 
-function PrimaryButton({
-  label,
-  icon,
-  onPress,
-  color,
-}: {
-  label: string;
-  icon: keyof typeof Ionicons.glyphMap;
-  onPress: () => void;
-  color: string;
-}) {
+function PrimaryButton({ label, icon, onPress, color }: any) {
   return (
     <TouchableOpacity
       style={[styles.button, { backgroundColor: color }]}
@@ -166,15 +265,7 @@ function PrimaryButton({
   );
 }
 
-function AnimatedIcon({
-  name,
-  onPress,
-  color,
-}: {
-  name: keyof typeof Ionicons.glyphMap;
-  onPress: () => void;
-  color: string;
-}) {
+function AnimatedIcon({ name, onPress, color }: any) {
   const scaleAnim = useRef(new Animated.Value(1)).current;
   const [tempColor, setTempColor] = useState<string | null>(null);
 

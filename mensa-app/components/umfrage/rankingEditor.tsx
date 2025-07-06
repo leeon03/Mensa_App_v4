@@ -10,12 +10,14 @@ import {
   UIManager,
   FlatList,
   ActivityIndicator,
+  useColorScheme,
 } from 'react-native';
 import DraggableFlatList, {
   RenderItemParams,
 } from 'react-native-draggable-flatlist';
 import { TouchableOpacity } from 'react-native-gesture-handler';
 import { supabase } from '../../constants/supabase';
+import { Colors } from '../../constants/Colors';
 
 interface RankingEditorProps {
   gerichte: string[];
@@ -38,6 +40,9 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 }
 
 export default function RankingEditor({ gerichte, setGerichte }: RankingEditorProps) {
+  const theme = useColorScheme() || 'light';
+  const themeColor = Colors[theme];
+
   const initialData: Item[] = useMemo(
     () => gerichte.map((g) => ({ key: g, label: g })),
     [gerichte]
@@ -51,7 +56,9 @@ export default function RankingEditor({ gerichte, setGerichte }: RankingEditorPr
   useEffect(() => {
     const ladeAlleGerichte = async () => {
       setLoading(true);
-      const { data, error } = await supabase.from('gerichte').select('id, name, anzeigename');
+      const { data, error } = await supabase
+        .from('gerichte')
+        .select('id, name, anzeigename');
       if (error) {
         Alert.alert('Fehler beim Laden der Gerichte');
         console.error(error);
@@ -111,7 +118,11 @@ export default function RankingEditor({ gerichte, setGerichte }: RankingEditorPr
   const renderItem = useCallback(
     ({ item, drag, isActive }: RenderItemParams<Item>) => (
       <TouchableOpacity
-        style={[styles.item, isActive && styles.activeItem]}
+        style={[
+          styles.item,
+          theme === 'dark' ? styles.itemDark : styles.itemLight,
+          isActive && styles.activeItem,
+        ]}
         onLongPress={drag}
         delayLongPress={150}
         activeOpacity={1}
@@ -121,17 +132,128 @@ export default function RankingEditor({ gerichte, setGerichte }: RankingEditorPr
             {data.findIndex((d) => d.key === item.key) + 1}
           </Text>
         </View>
-        <Text style={styles.itemText}>{item.label}</Text>
+        <Text style={[styles.itemText, { color: themeColor.text }]}>{item.label}</Text>
         <TouchableOpacity onPress={() => eintragEntfernen(item.key)}>
           <Text style={styles.removeX}>×</Text>
         </TouchableOpacity>
       </TouchableOpacity>
     ),
-    [data]
+    [data, theme, themeColor]
   );
 
   const isSelected = (gericht: Gericht) =>
     data.some((item) => item.label === gericht.name);
+
+  const styles = StyleSheet.create({
+    container: {
+      flex: 1,
+    },
+    content: {
+      padding: 16,
+      paddingBottom: 32,
+    },
+    label: {
+      fontWeight: '600',
+      fontSize: 15,
+      marginBottom: 12,
+      color: themeColor.text,
+    },
+    inputContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: 16,
+    },
+    input: {
+      flex: 1,
+      borderWidth: 1,
+      borderColor: themeColor.border,
+      borderRadius: 10,
+      paddingHorizontal: 14,
+      paddingVertical: 10,
+      fontSize: 15,
+      backgroundColor: themeColor.surface,
+      color: themeColor.text,
+    },
+    addButton: {
+      marginLeft: 8,
+      backgroundColor: '#e0e0e0',
+      paddingHorizontal: 16,
+      paddingVertical: 10,
+      borderRadius: 10,
+    },
+    addButtonText: {
+      fontSize: 18,
+      fontWeight: '600',
+      color: '#333',
+    },
+    dragListWrapper: {
+      maxHeight: 400,
+      minHeight: 100,
+      marginBottom: 12,
+    },
+    item: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      padding: 12,
+      borderRadius: 10,
+      marginBottom: 10,
+      borderWidth: 1,
+    },
+    itemLight: {
+      backgroundColor: themeColor.card,
+      borderColor: themeColor.border,
+    },
+    itemDark: {
+      backgroundColor: themeColor.surface,
+      borderColor: themeColor.border,
+    },
+    activeItem: {
+      backgroundColor: theme === 'dark' ? 'rgba(255,255,255,0.06)' : '#e6f0ff',
+    },
+    itemText: {
+      flex: 1,
+      fontSize: 15,
+    },
+    badge: {
+      backgroundColor: '#d9534f',
+      width: 26,
+      height: 26,
+      borderRadius: 13,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginRight: 12,
+    },
+    badgeText: {
+      color: '#fff',
+      fontWeight: 'bold',
+      fontSize: 13,
+    },
+    removeX: {
+      color: '#d9534f',
+      fontSize: 20,
+      fontWeight: '600',
+      paddingHorizontal: 6,
+    },
+    gerichtItem: {
+      padding: 10,
+      borderBottomWidth: 1,
+      borderColor: themeColor.border,
+    },
+    gerichtItemSelected: {
+      backgroundColor: theme === 'dark' ? '#442222' : '#ffe6e6',
+    },
+    gerichtText: {
+      fontSize: 15,
+      color: themeColor.text,
+    },
+    gerichtTextSelected: {
+      color: '#d9534f',
+      fontWeight: 'bold',
+    },
+    gerichteListeWrapper: {
+      maxHeight: 300,
+    },
+  });
 
   return (
     <View style={styles.container}>
@@ -141,6 +263,7 @@ export default function RankingEditor({ gerichte, setGerichte }: RankingEditorPr
         <View style={styles.inputContainer}>
           <TextInput
             placeholder="Eintrag manuell hinzufügen..."
+            placeholderTextColor={themeColor.placeholder}
             value={neuerEintrag}
             onChangeText={setNeuerEintrag}
             style={styles.input}
@@ -191,7 +314,7 @@ export default function RankingEditor({ gerichte, setGerichte }: RankingEditorPr
                   </TouchableOpacity>
                 );
               }}
-              style={{ maxHeight: 300 }} // ca. 5–6 Einträge
+              style={{ maxHeight: 300 }}
             />
           </View>
         )}
@@ -199,112 +322,3 @@ export default function RankingEditor({ gerichte, setGerichte }: RankingEditorPr
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  content: {
-    padding: 16,
-    paddingBottom: 32,
-  },
-  label: {
-    fontWeight: '600',
-    fontSize: 15,
-    marginBottom: 12,
-    color: '#222',
-  },
-  inputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  input: {
-    flex: 1,
-    borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    fontSize: 15,
-    backgroundColor: '#fafafa',
-  },
-  addButton: {
-    marginLeft: 8,
-    backgroundColor: '#e0e0e0',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 10,
-  },
-  addButtonText: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#333',
-  },
-  dragListWrapper: {
-    maxHeight: 400,
-    minHeight: 100,
-    marginBottom: 12,
-  },
-  item: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#fff',
-    padding: 12,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#eee',
-    marginBottom: 10,
-    shadowColor: '#000',
-    shadowOpacity: 0.03,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 2 },
-  },
-  activeItem: {
-    backgroundColor: '#f0f8ff',
-  },
-  itemText: {
-    flex: 1,
-    fontSize: 15,
-    color: '#333',
-  },
-  badge: {
-    backgroundColor: '#d9534f',
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-  },
-  badgeText: {
-    color: '#fff',
-    fontWeight: 'bold',
-    fontSize: 13,
-  },
-  removeX: {
-    color: '#d9534f',
-    fontSize: 20,
-    fontWeight: '600',
-    paddingHorizontal: 6,
-  },
-  gerichtItem: {
-    padding: 10,
-    borderBottomWidth: 1,
-    borderColor: '#eee',
-  },
-  gerichtItemSelected: {
-    backgroundColor: '#ffe6e6',
-  },
-  gerichtText: {
-    fontSize: 15,
-    color: '#555',
-  },
-  gerichtTextSelected: {
-    color: '#d9534f',
-    fontWeight: 'bold',
-  },
-  gerichteListeWrapper: {
-    maxHeight: 300,
-  },
-});
