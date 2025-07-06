@@ -117,10 +117,8 @@ const Card: React.FC<CardProps> = ({
   };
 
   const handleFavoritePress = async () => {
-    if (!isFavorite) {
-      triggerHaptic();
-      await playSound(require('../../assets/sounds/heart.wav'));
-    }
+    triggerHaptic();
+    await playSound(require('../../assets/sounds/heart.wav'));
     onFavoritePress();
   };
 
