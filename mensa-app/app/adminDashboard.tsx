@@ -28,6 +28,11 @@ export default function AdminDashboard() {
       label: 'Neues Gericht',
       route: '/adminNeuesGericht',
     },
+    {
+    icon: 'clipboard-outline',
+    label: 'Umfragen verwalten',
+    route: '/adminUmfrage',
+  },
   ] as const;
 
   return (
