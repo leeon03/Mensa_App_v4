@@ -1,3 +1,4 @@
+// adminUmfrage.tsx
 import React, { useEffect, useState } from 'react';
 import {
   View,
@@ -107,11 +108,11 @@ export default function AdminUmfrageScreen() {
     const statusEinträge = users.map((u) => ({
       user_id: u.id,
       umfrage_id: neueUmfrageId,
-      erledigt: false,
+      beantwortet: false,
     }));
 
     const { error: statusError } = await supabase
-      .from('user_umfrage_status')
+      .from('user_umfragen')
       .insert(statusEinträge);
 
     if (statusError) {
@@ -134,8 +135,8 @@ export default function AdminUmfrageScreen() {
   const handleRestart = async (umfrageId: string) => {
     try {
       const { error } = await supabase
-        .from('user_umfrage_status')
-        .update({ erledigt: false })
+        .from('user_umfragen')
+        .update({ beantwortet: false })
         .eq('umfrage_id', umfrageId);
 
       if (error) {
@@ -161,7 +162,7 @@ export default function AdminUmfrageScreen() {
           onPress: async () => {
             try {
               const { error: statusError } = await supabase
-                .from('user_umfrage_status')
+                .from('user_umfragen')
                 .delete()
                 .eq('umfrage_id', umfrageId);
 
