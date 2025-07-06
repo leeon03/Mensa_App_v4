@@ -16,7 +16,7 @@ import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
 import { supabase } from '../constants/supabase';
 
-const ADMIN_CODE = 'GEHEIM1234'; // 🔐 Dein Admin-Code
+const ADMIN_CODE = '1234'; // 🔐 Dein Admin-Code
 
 export default function AdminLoginScreen() {
   const theme = useColorScheme() || 'light';
