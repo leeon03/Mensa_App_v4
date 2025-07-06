@@ -16,6 +16,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../constants/supabase';
 import { Colors } from '../constants/Colors';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import * as ImagePicker from 'expo-image-picker';
+import { ActivityIndicator } from 'react-native';
+
 
 export default function AdminBearbeiten() {
   const { id } = useLocalSearchParams();
@@ -50,6 +53,8 @@ export default function AdminBearbeiten() {
   const [preis, setPreis] = useState('');
   const [tags, setTags] = useState<string[]>([]);
   const [bildUrl, setBildUrl] = useState('');
+  const [loadingImage, setLoadingImage] = useState(false);
+
 
   useEffect(() => {
     if (typeof id !== 'string') return;
@@ -90,6 +95,40 @@ export default function AdminBearbeiten() {
     setModalVisible(true);
   };
 
+  const handleSelectImage = async (source: 'camera' | 'gallery') => {
+    setLoadingImage(true);
+  
+    const pickerResult = source === 'camera'
+      ? await ImagePicker.launchCameraAsync({
+          allowsEditing: true,
+          aspect: [1, 1],
+          quality: 0.8,
+          base64: true,
+        })
+      : await ImagePicker.launchImageLibraryAsync({
+          allowsEditing: true,
+          aspect: [1, 1],
+          quality: 0.8,
+          base64: true,
+        });
+  
+    if (pickerResult.canceled) {
+      setLoadingImage(false);
+      return;
+    }
+  
+    const base64 = pickerResult.assets?.[0]?.base64;
+    if (!base64) {
+      setLoadingImage(false);
+      Alert.alert('Fehler', 'Bild konnte nicht geladen werden.');
+      return;
+    }
+  
+    setBildUrl(`data:image/jpeg;base64,${base64}`);
+    setLoadingImage(false);
+  };
+  
+
   const saveEditedField = () => {
     switch (activeField) {
       case 'anzeigename':
@@ -118,14 +157,16 @@ export default function AdminBearbeiten() {
     }
 
     const { error } = await supabase
-      .from('gerichte')
-      .update({
-        anzeigename,
-        beschreibung,
-        kategorie,
-        preis: parseFloat(preis),
-        tags,
-      })
+    .from('gerichte')
+    .update({
+      anzeigename,
+      beschreibung,
+      kategorie,
+      preis: parseFloat(preis),
+      tags,
+      bild_url: bildUrl, // <-- hier neu
+    })
+
       .eq('id', gericht.id);
 
     if (error) {
@@ -137,6 +178,15 @@ export default function AdminBearbeiten() {
       setTimeout(() => router.replace('/adminGerichte'), 10);
     }
   };
+
+  const openImageOptions = () => {
+    Alert.alert('Bild ändern', 'Wähle eine Option:', [
+      { text: 'Kamera', onPress: () => handleSelectImage('camera') },
+      { text: 'Galerie', onPress: () => handleSelectImage('gallery') },
+      { text: 'Abbrechen', style: 'cancel' },
+    ]);
+  };
+  
 
   const renderItem = (label: string, value: string | string[], field: string, editable = true) => (
     <View style={styles.row}>
@@ -161,9 +211,19 @@ export default function AdminBearbeiten() {
       <ScrollView contentContainerStyle={{ paddingBottom: 40 }}>
         <Text style={[styles.title, { color: '#d9534f' }]}>GERICHT BEARBEITEN</Text>
 
-        {bildUrl ? (
-          <Image source={{ uri: bildUrl }} style={styles.image} resizeMode="cover" />
-        ) : null}
+        <TouchableOpacity onPress={openImageOptions} style={{ alignItems: 'center', marginBottom: 24 }}>
+          {loadingImage ? (
+            <ActivityIndicator size="large" color={themeColor.text} />
+          ) : bildUrl ? (
+            <Image source={{ uri: bildUrl }} style={styles.image} resizeMode="cover" />
+          ) : (
+            <View style={[styles.image, { backgroundColor: '#ccc', justifyContent: 'center', alignItems: 'center' }]}>
+              <Ionicons name="image-outline" size={40} color="#fff" />
+            </View>
+          )}
+          <Text style={{ color: themeColor.text, marginTop: 8 }}>Bild ändern</Text>
+        </TouchableOpacity>
+
 
         {renderItem('Anzeigename', anzeigename, 'anzeigename')}
         {renderItem('Beschreibung', beschreibung, 'beschreibung')}
