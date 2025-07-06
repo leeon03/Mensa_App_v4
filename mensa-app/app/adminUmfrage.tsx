@@ -8,8 +8,6 @@ import {
   TouchableOpacity,
   StyleSheet,
   Alert,
-  KeyboardAvoidingView,
-  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -60,7 +58,7 @@ export default function AdminUmfrageScreen() {
     }
 
     const neueAntworten =
-      typ === 'freitext' ? antworten : ausgewählteGerichte;
+      typ === 'freitext' ? antworten : typ === 'ranking' ? antworten : ausgewählteGerichte;
 
     if (neueAntworten.length === 0) {
       Alert.alert('Fehler', 'Bitte füge mindestens eine Antwortoption hinzu.');
@@ -151,7 +149,15 @@ export default function AdminUmfrageScreen() {
               <Text style={styles.label}>Fragetyp:</Text>
               <View style={styles.typeSelector}>
                 {(['freitext', 'einzelauswahl', 'mehrfachauswahl', 'ranking'] as Fragetyp[]).map((t) => (
-                  <TouchableOpacity key={t} onPress={() => setTyp(t)}>
+                  <TouchableOpacity
+                    key={t}
+                    onPress={() => {
+                      setTyp(t);
+                      setAntworten([]);
+                      setAntwortInput('');
+                      setAusgewählteGerichte([]);
+                    }}
+                  >
                     <Text style={[styles.typeButton, typ === t && styles.selectedTypeButton]}>
                       {t}
                     </Text>
@@ -169,8 +175,8 @@ export default function AdminUmfrageScreen() {
               {typ === 'ranking' && (
                 <View style={styles.rankingWrapper}>
                   <RankingEditor
-                    gerichte={ausgewählteGerichte}
-                    setGerichte={setAusgewählteGerichte}
+                    gerichte={antworten}
+                    setGerichte={setAntworten}
                   />
                 </View>
               )}
@@ -184,11 +190,11 @@ export default function AdminUmfrageScreen() {
                 />
               )}
 
-              {(typ === 'einzelauswahl' || typ === 'mehrfachauswahl' || typ === 'ranking') && (
+              {(typ === 'einzelauswahl' || typ === 'mehrfachauswahl') && (
                 <>
                   <Text style={styles.label}>Antwortoptionen:</Text>
                   <AuswahlEditor
-                    typ={typ === 'ranking' ? 'mehrfachauswahl' : typ}
+                    typ={typ}
                     gerichte={gerichte}
                     ausgewählteGerichte={ausgewählteGerichte}
                     setAusgewählteGerichte={setAusgewählteGerichte}
