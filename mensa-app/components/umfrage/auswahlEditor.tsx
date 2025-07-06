@@ -23,14 +23,12 @@ export default function AuswahlEditor({
   hideSelected = false,
 }: AuswahlEditorProps) {
   const handleToggle = (gericht: string) => {
-    if (typ === 'einzelauswahl') {
-      setAusgewählteGerichte([gericht]);
+    if (ausgewählteGerichte.includes(gericht)) {
+      // Gericht entfernen
+      setAusgewählteGerichte(ausgewählteGerichte.filter((g) => g !== gericht));
     } else {
-      if (ausgewählteGerichte.includes(gericht)) {
-        setAusgewählteGerichte(ausgewählteGerichte.filter((g) => g !== gericht));
-      } else {
-        setAusgewählteGerichte([...ausgewählteGerichte, gericht]);
-      }
+      // Gericht hinzufügen
+      setAusgewählteGerichte([...ausgewählteGerichte, gericht]);
     }
   };
 
