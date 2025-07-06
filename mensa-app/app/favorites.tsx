@@ -89,44 +89,47 @@ function FavoritesInner() {
   const handleRemove = useCallback(async (gerichtId: number, gerichtName: string) => {
     const key = gerichtId.toString();
     const anim = animationRefs.current[key];
-
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-
-    if (!session?.user) {
-      console.warn('Kein Benutzer angemeldet');
-      return;
-    }
-
-    // ✅ 1. Supabase löschen
-    const { error } = await supabase
-      .from('favorites')
-      .delete()
-      .eq('user_id', session.user.id)
-      .eq('gericht_id', gerichtId);
-
-    if (error) {
-      console.error('Fehler beim Entfernen aus Supabase:', error);
-      return;
-    }
-
-    // ✅ 2. Context aktualisieren (für andere Seiten)
-    await toggleFavorite(gerichtId, gerichtName);
-
-    // ✅ 3. Karte entfernen mit Animation
+  
+    // ✅ 1. Gericht sofort lokal entfernen (nach Animation)
+    const removeFromLocalList = () => {
+      setGerichte((prev) => prev.filter((g) => g.id !== gerichtId));
+    };
+  
     if (anim) {
       Animated.timing(anim, {
         toValue: 0,
         duration: 300,
         useNativeDriver: true,
-      }).start(() => {
-        setGerichte((prev) => prev.filter((g) => g.id !== gerichtId));
-      });
+      }).start(removeFromLocalList);
     } else {
-      setGerichte((prev) => prev.filter((g) => g.id !== gerichtId));
+      removeFromLocalList();
     }
+  
+    // ✅ 2. Supabase löschen
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+  
+    if (!session?.user) {
+      console.warn('Kein Benutzer angemeldet');
+      return;
+    }
+  
+    const { error } = await supabase
+      .from('favorites')
+      .delete()
+      .eq('user_id', session.user.id)
+      .eq('gericht_id', gerichtId);
+  
+    if (error) {
+      console.error('Fehler beim Entfernen aus Supabase:', error);
+      return;
+    }
+  
+    // ✅ 3. Context aktualisieren
+    await toggleFavorite(gerichtId, gerichtName);
   }, [toggleFavorite]);
+  
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: themeColor.background }]}>

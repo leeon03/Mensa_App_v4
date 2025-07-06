@@ -92,12 +92,10 @@ function SwipeScreen() {
 
       const [gerichteRes, favoritesRes] = await Promise.all([
         supabase.from('gerichte').select('id, name, anzeigename, beschreibung, tags, bild_url'),
-        supabase.from('favorites').select('gerichte (id)').eq('user_id', user.id),
+        supabase.from('favorites').select('gericht_id').eq('user_id', user.id),
       ]);
-
-      const favoriteIDs = favoritesRes.data
-        ?.map((f) => f.gerichte?.id)
-        .filter((id): id is number => typeof id === 'number') || [];
+      
+      const favoriteIDs = favoritesRes.data?.map((f) => f.gericht_id) || [];
 
       const gefilterteGerichte = (gerichteRes.data || [])
         .filter((g: Gericht) => !favoriteIDs.includes(g.id))
