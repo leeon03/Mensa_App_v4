@@ -75,11 +75,11 @@ Format:
     const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
       headers: {
-        Authorization: "Bearer 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",
+        Authorization: "Bearer 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",
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "mistralai/devstral-small:free",
+        model: "mistralai/mistral-small-3.2-24b-instruct:free",
         messages: [
           { role: "system", content: "You are a helpful AI chef assistant." },
           { role: "user", content: prompt },

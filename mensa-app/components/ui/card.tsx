@@ -26,7 +26,7 @@ type CardProps = {
   beschreibung: string;
   bild_url: string;
   kategorie: string;
-  bewertungen: Bewertung[];
+  bewertungen?: Bewertung[];
   tags?: string[];
   preis: number;
   isFavorite: boolean;
@@ -95,7 +95,7 @@ const Card: React.FC<CardProps> = ({
   beschreibung,
   bild_url,
   kategorie,
-  bewertungen,
+  bewertungen = [],
   tags = [],
   preis,
   isFavorite,
@@ -198,9 +198,7 @@ const Card: React.FC<CardProps> = ({
           </Text>
         ) : null}
         <Text style={[styles.title, { color: themeColor.text }]}>{anzeigename}</Text>
-        <Text style={[styles.description, { color: themeColor.text }]}>
-          {beschreibung}
-        </Text>
+        <Text style={[styles.description, { color: themeColor.text }]}>{beschreibung}</Text>
 
         {tags.length > 0 && (
           <View style={styles.tagsContainer}>
